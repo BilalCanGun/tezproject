@@ -40,6 +40,7 @@ const sections = computed(() => {
                     { label: 'Manipülasyon kontrolü', route: 'admin.reports.manipulation', match: 'admin.reports.manipulation' },
                     { label: 'Pilot doğrulama', route: 'admin.reports.pilot', match: 'admin.reports.pilot' },
                     { label: 'Puanlayıcı güvenirliği', route: 'admin.reports.reliability', match: 'admin.reports.reliability' },
+                    { label: 'Cihaz doğrulama ve modeller', route: 'admin.reports.devices', match: 'admin.reports.devices' },
                     { label: 'Veri dışa aktarımı', route: 'admin.exports.index', match: 'admin.exports.*' },
                 ],
             },

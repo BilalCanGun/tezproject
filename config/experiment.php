@@ -71,7 +71,7 @@ return [
             'delay_max_days' => 8,
             'learning_target_minutes' => 30,
             'session1_target_minutes' => 90,
-            'session2_target_minutes' => 60,
+            'session2_target_minutes' => 45,
         ],
         'stratification' => [
             'low_upper_percent' => 40,
@@ -86,7 +86,7 @@ return [
             'min_eeg_usable_epoch_ratio' => 0.70,
             'min_gaze_valid_ratio' => 0.80,
             'max_wearable_loss_ratio' => 0.10,
-            'min_marker_integrity' => 0.99,
+            'min_marker_integrity' => 1.0,
             'max_calibration_error_deg' => 1.0,
         ],
         'pilot' => [
@@ -94,6 +94,7 @@ return [
             'far_transfer_floor_percent' => 20,
             'far_transfer_ceiling_percent' => 80,
             'min_direct_full_code_rate' => 0.70,
+            'min_direct_request_fulfilment_rate' => 0.90,
             'max_socratic_leak_rate' => 0.05,
             'min_socratic_questions_per_reply' => 1.0,
             'max_planning_violations_per_task' => 1.0,

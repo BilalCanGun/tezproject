@@ -17,6 +17,8 @@ const rows = [
     { key: 'replies_per_attempt', label: 'Görev başına YZ yanıtı', format: formatNumber, ai: true },
     { key: 'full_code_rate', label: 'Tam kod içeren yanıt oranı (≥3 satır)', format: formatPercent, ai: true },
     { key: 'direct_solution_rate', label: 'Doğrudan çözüm oranı', format: formatPercent, ai: true },
+    { key: 'explicit_requests', label: 'Açık çözüm talebi', format: (v) => formatNumber(v, 0), ai: true },
+    { key: 'explicit_request_fulfilment_rate', label: 'Açık talep sonrası tam çözüm oranı', format: formatPercent, ai: true },
     { key: 'mean_code_lines', label: 'Yanıt başına kod satırı', format: formatNumber, ai: true },
     { key: 'mean_questions', label: 'Yanıt başına soru', format: formatNumber, ai: true },
     { key: 'pre_guard_leak_rate', label: 'Koruma öncesi sızıntı oranı', format: formatPercent, ai: true },

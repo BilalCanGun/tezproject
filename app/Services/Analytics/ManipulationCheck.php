@@ -7,6 +7,7 @@ use App\Enums\SessionKind;
 use App\Models\AiMessage;
 use App\Models\ProtocolVersion;
 use App\Models\TaskAttempt;
+use App\Services\Assistance\ResponseAnalyzer;
 use Illuminate\Support\Collection;
 
 /**
@@ -26,7 +27,12 @@ class ManipulationCheck
             ->where('role', AiMessage::ROLE_ASSISTANT)
             ->whereNull('error')
             ->whereHas('session.participant', fn ($query) => $query->where('protocol_version_id', $protocol->id))
-            ->get(['id', 'task_attempt_id', 'condition', 'metrics', 'guard_action', 'hint_level', 'latency_ms', 'output_tokens']);
+            ->get(['id', 'task_attempt_id', 'condition', 'metrics', 'guard_action', 'hint_level', 'latency_ms', 'output_tokens', 'created_at']);
+
+        $prompts = AiMessage::query()
+            ->where('role', AiMessage::ROLE_USER)
+            ->whereHas('session.participant', fn ($query) => $query->where('protocol_version_id', $protocol->id))
+            ->get(['id', 'task_attempt_id', 'condition', 'content', 'created_at']);
 
         $attempts = TaskAttempt::query()
             ->where('help_available', true)
@@ -49,6 +55,7 @@ class ManipulationCheck
                 'attempts' => $conditionAttempts->count(),
                 ...$this->behaviour($conditionAttempts),
                 ...($condition->usesAssistant() ? $this->replyMetrics($conditionReplies, $conditionAttempts, $maxCodeLines) : []),
+                ...($condition->usesAssistant() ? $this->requestFulfilment($prompts->where('condition', $condition), $conditionReplies) : []),
             ];
         }
 
@@ -82,6 +89,36 @@ class ManipulationCheck
             'guard_redacted' => $replies->where('guard_action', 'redacted')->count(),
             'hints_by_level' => $replies->whereNotNull('hint_level')->countBy('hint_level')->sortKeys()->all(),
             'median_latency_ms' => Statistics::median($replies->pluck('latency_ms')->filter()->values()->all()),
+        ];
+    }
+
+    /**
+     * Pairs every explicit solution request with the first reply that follows
+     * it in the same attempt and reports how often that reply was a full
+     * solution. In the direct condition this should be high, in the Socratic
+     * condition it is the leak rate under pressure.
+     *
+     * @param  Collection<int, AiMessage>  $prompts
+     * @param  Collection<int, AiMessage>  $replies
+     * @return array{explicit_requests: int, explicit_request_fulfilment_rate: ?float}
+     */
+    private function requestFulfilment(Collection $prompts, Collection $replies): array
+    {
+        $repliesByAttempt = $replies->sortBy('created_at')->groupBy('task_attempt_id');
+
+        $outcomes = $prompts
+            ->filter(fn (AiMessage $prompt) => ResponseAnalyzer::isExplicitSolutionRequest($prompt->content))
+            ->map(function (AiMessage $prompt) use ($repliesByAttempt) {
+                $reply = ($repliesByAttempt->get($prompt->task_attempt_id) ?? collect())
+                    ->first(fn (AiMessage $candidate) => $candidate->created_at >= $prompt->created_at);
+
+                return $reply === null ? null : (bool) ($reply->metrics['full_solution'] ?? false);
+            })
+            ->filter(fn (?bool $fulfilled) => $fulfilled !== null);
+
+        return [
+            'explicit_requests' => $outcomes->count(),
+            'explicit_request_fulfilment_rate' => $outcomes->count() ? round($outcomes->filter()->count() / $outcomes->count(), 3) : null,
         ];
     }
 

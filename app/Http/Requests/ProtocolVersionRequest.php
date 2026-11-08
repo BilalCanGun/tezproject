@@ -69,6 +69,7 @@ class ProtocolVersionRequest extends FormRequest
             'settings.pilot.far_transfer_floor_percent' => ['required', 'numeric', 'between:0,100'],
             'settings.pilot.far_transfer_ceiling_percent' => ['required', 'numeric', 'between:0,100', 'gt:settings.pilot.far_transfer_floor_percent'],
             'settings.pilot.min_direct_full_code_rate' => ['required', 'numeric', 'between:0,1'],
+            'settings.pilot.min_direct_request_fulfilment_rate' => ['required', 'numeric', 'between:0,1'],
             'settings.pilot.max_socratic_leak_rate' => ['required', 'numeric', 'between:0,1'],
             'settings.pilot.min_socratic_questions_per_reply' => ['required', 'numeric', 'between:0,10'],
             'settings.pilot.max_planning_violations_per_task' => ['required', 'numeric', 'between:0,50'],

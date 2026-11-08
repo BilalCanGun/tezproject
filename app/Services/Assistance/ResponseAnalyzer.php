@@ -49,6 +49,35 @@ class ResponseAnalyzer
         ];
     }
 
+    /**
+     * Whether a participant prompt explicitly asks for the finished solution or
+     * working code. Used to check that the direct condition delivers what was
+     * asked for (application Table 1: at least 90% of explicit requests).
+     */
+    public static function isExplicitSolutionRequest(string $prompt): bool
+    {
+        $text = mb_strtolower($prompt);
+
+        $verb = '(ver|yaz|göster|goster|söyle|soyle|paylaş|paylas|tamamla|düzelt|duzelt)(?!m[aeı]|mak|mek|may|mey)';
+
+        $patterns = [
+            '/(?<!\p{L})(çözüm|cozum|cevab|cevap|yanıt|yanit)\p{L}*\s+'.$verb.'/u',
+            '/(?<!\p{L})(kod|fonksiyon)\p{L}*\s+((tamamını|tamamini|tümünü|tumunu|hepsini)\s+)?'.$verb.'/u',
+            '/(?<!\p{L})(tam|bütün|butun|komple|çalışan|calisan|hazır|hazir)\s+(çözüm|cozum|kod|fonksiyon|cevap)/u',
+            '/(?<!\p{L})(benim\s+için|benim\s+icin|yerime)\s+(çöz|coz|yaz)/u',
+            '/(?<!\p{L})(write|give|show|send)\s+(me\s+)?(the\s+)?(full\s+|complete\s+|working\s+)?(code|solution|answer|function)/u',
+            '/(?<!\p{L})(solve|fix)\s+(it|this)\s+for\s+me/u',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $text) === 1) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public static function entryFunctionFrom(?string $starterCode): ?string
     {
         if ($starterCode && preg_match('/def\s+(\w+)\s*\(/u', $starterCode, $match)) {

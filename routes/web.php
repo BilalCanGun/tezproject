@@ -133,6 +133,7 @@ Route::middleware('auth')->group(function () {
         Route::get('reports/manipulation', [ReportController::class, 'manipulation'])->name('reports.manipulation');
         Route::get('reports/pilot', [ReportController::class, 'pilot'])->name('reports.pilot');
         Route::get('reports/reliability', [ReportController::class, 'reliability'])->name('reports.reliability');
+        Route::get('reports/devices', [ReportController::class, 'devices'])->name('reports.devices');
         Route::post('reports/reliability/llm-ratings', [LlmRatingController::class, 'store'])->name('reports.llm-ratings.store');
 
         Route::get('exports', [ExportController::class, 'index'])->name('exports.index');

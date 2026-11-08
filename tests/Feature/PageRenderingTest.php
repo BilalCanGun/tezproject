@@ -57,6 +57,7 @@ class PageRenderingTest extends TestCase
             [route('admin.reports.manipulation'), 'Admin/Reports/Manipulation'],
             [route('admin.reports.pilot'), 'Admin/Reports/Pilot'],
             [route('admin.reports.reliability'), 'Admin/Reports/Reliability'],
+            [route('admin.reports.devices'), 'Admin/Reports/Devices'],
             [route('admin.exports.index'), 'Admin/Exports/Index'],
             [route('admin.users.index'), 'Admin/Users/Index'],
             [route('admin.users.create'), 'Admin/Users/Form'],

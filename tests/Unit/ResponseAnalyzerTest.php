@@ -42,6 +42,22 @@ class ResponseAnalyzerTest extends TestCase
     }
 
     #[Test]
+    public function explicit_solution_requests_are_recognised(): void
+    {
+        foreach (['Bana tam çözümü ver', 'Kodu yazar mısın?', 'fonksiyonun tamamını yaz lütfen', 'Benim için çöz', 'Çalışan kod lazım', 'Just give me the full code'] as $prompt) {
+            $this->assertTrue(ResponseAnalyzer::isExplicitSolutionRequest($prompt), $prompt);
+        }
+    }
+
+    #[Test]
+    public function conceptual_questions_are_not_solution_requests(): void
+    {
+        foreach (['Özyineleme neden durmuyor?', 'Kod yazmayı tam anlamadım, temel durum ne demek?', 'Bu hata mesajı ne anlama geliyor?', 'Bir ipucu verir misin?'] as $prompt) {
+            $this->assertFalse(ResponseAnalyzer::isExplicitSolutionRequest($prompt), $prompt);
+        }
+    }
+
+    #[Test]
     public function the_entry_function_is_read_from_the_starter_code(): void
     {
         $this->assertSame('cift_say', ResponseAnalyzer::entryFunctionFrom("def cift_say(veri):\n    pass"));

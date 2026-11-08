@@ -93,6 +93,14 @@ class PilotValidation
                 '%',
             ),
             $this->row(
+                'Doğrudan YZ koşulu — açık talepler',
+                'Açık çözüm talebinden sonra tam çözüm verilen yanıt oranı',
+                '≥ %'.($p('min_direct_request_fulfilment_rate') * 100),
+                $direct['explicit_request_fulfilment_rate'] ?? null,
+                fn ($v) => $v >= $p('min_direct_request_fulfilment_rate'),
+                '%',
+            ),
+            $this->row(
                 'Sokratik YZ koşulu — sızıntı',
                 'Koruma sonrası çözüm/kod sızan yanıt oranı',
                 '≤ %'.($p('max_socratic_leak_rate') * 100),

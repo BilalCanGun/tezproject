@@ -11,11 +11,15 @@ use App\Services\Analytics\Statistics;
 use App\Services\Analytics\StudyProgress;
 use App\Services\Scoring\ReliabilityReport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ReportController extends Controller
 {
+    public const DEVICE_REPORT = 'analysis/device_validation.json';
+
     public function progress(Request $request, StudyProgress $progress, OutcomeDataset $dataset): Response
     {
         $protocol = $this->protocol($request);
@@ -63,6 +67,21 @@ class ReportController extends Controller
         return Inertia::render('Admin/Reports/Reliability', [
             ...$this->protocolProps($protocol),
             'report' => $protocol ? $report->build($protocol) : null,
+        ]);
+    }
+
+    /**
+     * Results of the Python device validation and model comparison
+     * (analysis/run_validation.py). The page explains how to produce them
+     * when the file does not exist yet.
+     */
+    public function devices(): Response
+    {
+        $disk = Storage::disk('local');
+        $report = $disk->exists(self::DEVICE_REPORT) ? json_decode($disk->get(self::DEVICE_REPORT), true) : null;
+
+        return Inertia::render('Admin/Reports/Devices', [
+            'report' => is_array($report) ? Arr::except($report, 'sections') : null,
         ]);
     }
 
