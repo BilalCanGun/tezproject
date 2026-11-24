@@ -3,18 +3,24 @@ import { Head, Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import ProtocolTabs from '@/Components/ProtocolTabs.vue';
+import DesignWarnings from '@/Components/DesignWarnings.vue';
 import { formatDuration } from '@/lib/format';
 
 const props = defineProps({
     protocol: Object,
     tasks: Object,
+    designWarnings: { type: Array, default: () => [] },
 });
 
 const sessionTitles = {
     0: 'Ön değerlendirme (sensörsüz, yardımsız)',
     1: '1. Oturum · Öğrenme (koşula göre yardım)',
     2: '2. Oturum · Gecikmeli (yardımsız)',
+    form_A: 'Form A · A-B sırasında 1. oturumda, B-A sırasında 2. oturumda',
+    form_B: 'Form B · A-B sırasında 2. oturumda, B-A sırasında 1. oturumda',
 };
+
+const groups = ['0', '1', '2', 'form_A', 'form_B'];
 
 function remove(task) {
     if (confirm(`"${task.title}" silinsin mi? Denemesi olan görevler silinmez, pasifleştirilir.`)) {
@@ -36,12 +42,16 @@ function remove(task) {
 
         <ProtocolTabs :protocol="protocol" />
 
+        <DesignWarnings :warnings="designWarnings" />
+
         <p class="mb-4 max-w-3xl text-sm text-stone-600">
             Görevler sıra numarasına göre sunulur. İki oturumdaki eşdeğer görevler aynı <span class="code">izomorf grup</span> etiketini taşır;
             oturum × koşul etkileşimi ancak bu gruplar üzerinden karşılaştırılabilir. Birincil sonuç, 2. oturumdaki uzak transfer görevleridir.
+            Yakın/uzak transfer ve hata bulma görevleri A/B formlarına konursa, hangi oturumda çıkacakları katılımcının karşı dengelenmiş form sırasına
+            (A-B veya B-A) göre belirlenir; formlu görevlerde yardım yalnızca 1. oturumda verilir.
         </p>
 
-        <section v-for="session in [0, 1, 2]" :key="session" class="card mb-6">
+        <section v-for="session in groups" :key="session" class="card mb-6">
             <div class="card-header"><h2 class="card-title">{{ sessionTitles[session] }}</h2></div>
             <div class="overflow-x-auto">
                 <table class="table">

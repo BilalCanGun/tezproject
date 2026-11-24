@@ -7,16 +7,18 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\TaskRequest;
 use App\Models\ProtocolVersion;
 use App\Models\Task;
+use App\Services\Analytics\PilotValidation;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class TaskController extends Controller
 {
-    public function index(ProtocolVersion $protocol): Response
+    public function index(ProtocolVersion $protocol, PilotValidation $validation): Response
     {
         return Inertia::render('Admin/Tasks/Index', [
             'protocol' => $this->protocolSummary($protocol),
+            'designWarnings' => $validation->designWarnings($protocol),
             'tasks' => $protocol->tasks()
                 ->withCount('attempts')
                 ->orderBy('session_number')
@@ -26,6 +28,7 @@ class TaskController extends Controller
                 ->map(fn (Task $task) => [
                     'id' => $task->id,
                     'session_number' => $task->session_number,
+                    'form' => $task->form,
                     'kind_label' => $task->kind->label(),
                     'title' => $task->title,
                     'isomorph_group' => $task->isomorph_group,
@@ -38,7 +41,7 @@ class TaskController extends Controller
                     'tests_count' => count($task->test_cases ?? []),
                     'attempts_count' => $task->attempts_count,
                 ])
-                ->groupBy('session_number'),
+                ->groupBy(fn (array $task) => $task['form'] ? 'form_'.$task['form'] : (string) $task['session_number']),
         ]);
     }
 
@@ -52,6 +55,7 @@ class TaskController extends Controller
             'protocol' => $this->protocolSummary($protocol),
             'task' => null,
             'kinds' => $this->kinds(),
+            'measures' => $this->measures(),
             'pyodideIndexUrl' => config('experiment.pyodide_index_url'),
         ]);
     }
@@ -72,10 +76,11 @@ class TaskController extends Controller
         return Inertia::render('Admin/Tasks/Form', [
             'protocol' => $this->protocolSummary($protocol),
             'task' => [
-                ...$task->makeVisible(['reference_solution', 'mcq_answer'])->toArray(),
+                ...$task->makeVisible(['reference_solution', 'mcq_answer', 'scoring_key'])->toArray(),
                 'kind' => $task->kind->value,
             ],
             'kinds' => $this->kinds(),
+            'measures' => $this->measures(),
             'pyodideIndexUrl' => config('experiment.pyodide_index_url'),
         ]);
     }
@@ -124,6 +129,19 @@ class TaskController extends Controller
         return collect(TaskKind::cases())
             ->map(fn (TaskKind $kind) => ['value' => $kind->value, 'label' => $kind->label(), 'format' => $kind->responseFormat()])
             ->all();
+    }
+
+    /**
+     * Outcome variables a task can measure: every task kind plus persistence.
+     *
+     * @return list<array{value: string, label: string}>
+     */
+    private function measures(): array
+    {
+        return [
+            ...collect(TaskKind::cases())->map(fn (TaskKind $kind) => ['value' => $kind->value, 'label' => $kind->label()])->all(),
+            ['value' => TaskRequest::MEASURE_PERSISTENCE, 'label' => 'Görevde devam etme (ısrar)'],
+        ];
     }
 
     private function frozen(ProtocolVersion $protocol): RedirectResponse

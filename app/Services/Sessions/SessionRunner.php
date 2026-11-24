@@ -7,8 +7,10 @@ use App\Enums\ParticipantStatus;
 use App\Enums\SessionKind;
 use App\Enums\SessionStatus;
 use App\Enums\StepType;
+use App\Enums\TaskKind;
 use App\Models\ExperimentSession;
 use App\Models\SessionStep;
+use App\Models\Task;
 use App\Models\TaskAttempt;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -92,7 +94,7 @@ class SessionRunner
                     'experiment_session_id' => $session->id,
                     'task_id' => $step->task_id,
                     'phase' => AttemptPhase::Reading,
-                    'help_available' => $session->allowsAssistance() && $step->task->help_allowed,
+                    'help_available' => $this->helpAvailable($session, $step->task),
                     'started_at' => now(),
                 ]);
             }
@@ -218,13 +220,24 @@ class SessionRunner
         };
     }
 
+    /**
+     * The general baseline (stratification covariate) and the concept
+     * pre-check are stored separately so prior concept knowledge never leaks
+     * into the stratum.
+     */
     private function storeBaselineScore(ExperimentSession $session): void
     {
         $attempts = $session->attempts()->with('task')->get();
+        $baseline = $attempts->filter(fn (TaskAttempt $attempt) => $attempt->task->kind === TaskKind::Baseline);
+        $precheck = $attempts->filter(fn (TaskAttempt $attempt) => $attempt->task->kind === TaskKind::ConceptPrecheck);
+        $score = fn ($items) => round($items->sum(fn (TaskAttempt $attempt) => $attempt->auto_score ?? 0), 2);
+        $max = fn ($items) => round($items->sum(fn (TaskAttempt $attempt) => $attempt->task->max_score), 2);
 
         $session->participant->forceFill([
-            'baseline_score' => round($attempts->sum(fn (TaskAttempt $attempt) => $attempt->auto_score ?? 0), 2),
-            'baseline_max' => round($attempts->sum(fn (TaskAttempt $attempt) => $attempt->task->max_score), 2),
+            'baseline_score' => $score($baseline),
+            'baseline_max' => $max($baseline),
+            'concept_precheck_score' => $precheck->isEmpty() ? null : $score($precheck),
+            'concept_precheck_max' => $precheck->isEmpty() ? null : $max($precheck),
         ])->save();
     }
 
@@ -240,6 +253,19 @@ class SessionRunner
                 : 0.0,
             default => null,
         };
+    }
+
+    /**
+     * Help follows the condition and the task's switch. A form task can be
+     * shown in either session, but help is only ever given in session 1.
+     */
+    private function helpAvailable(ExperimentSession $session, Task $task): bool
+    {
+        if ($task->hasForm() && $session->kind() !== SessionKind::Learning) {
+            return false;
+        }
+
+        return $session->allowsAssistance() && $task->help_allowed;
     }
 
     private function guardRunnable(ExperimentSession $session): void

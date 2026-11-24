@@ -11,6 +11,7 @@ const props = defineProps({
     protocol: Object,
     task: Object,
     kinds: Array,
+    measures: Array,
     pyodideIndexUrl: String,
 });
 
@@ -19,6 +20,7 @@ const locked = computed(() => props.protocol.is_frozen);
 
 const form = useForm({
     session_number: props.task?.session_number ?? 1,
+    form: props.task?.form ?? '',
     kind: props.task?.kind ?? 'learning',
     title: props.task?.title ?? '',
     isomorph_group: props.task?.isomorph_group ?? '',
@@ -35,7 +37,44 @@ const form = useForm({
     time_limit_seconds: props.task?.time_limit_seconds ?? 600,
     help_allowed: props.task?.help_allowed ?? false,
     is_active: props.task?.is_active ?? true,
+    scoring_key: {
+        measures: '',
+        expected_approach: '',
+        difficulty: '',
+        estimated_minutes: null,
+        category_rationale: '',
+        alternative_solutions: [],
+        partial_credit: [],
+        misconceptions: [],
+        target_bugs: [],
+        explanation_elements: [],
+        ...(props.task?.scoring_key ?? {}),
+    },
 });
+
+const key = form.scoring_key;
+
+function cleanScoringKey(scoringKey) {
+    const cleaned = {
+        ...scoringKey,
+        measures: scoringKey.measures || null,
+        difficulty: scoringKey.difficulty || null,
+        estimated_minutes: scoringKey.estimated_minutes === '' ? null : scoringKey.estimated_minutes,
+        alternative_solutions: scoringKey.alternative_solutions.filter((item) => item.trim() !== ''),
+        explanation_elements: scoringKey.explanation_elements.filter((item) => item.trim() !== ''),
+        partial_credit: scoringKey.partial_credit.filter((item) => item.criterion.trim() !== ''),
+        misconceptions: scoringKey.misconceptions.filter((item) => item.code.trim() !== '' || item.description.trim() !== ''),
+        target_bugs: scoringKey.target_bugs.filter((item) => item.description.trim() !== ''),
+    };
+
+    const empty = Object.values(cleaned).every((value) => value === null || value === '' || (Array.isArray(value) && value.length === 0));
+
+    return empty ? null : cleaned;
+}
+
+const formKinds = ['near_transfer', 'far_transfer', 'debugging'];
+const canHaveForm = computed(() => formKinds.includes(form.kind));
+const helpEditable = computed(() => (form.form ? true : form.session_number === 1));
 
 const format = computed(() => props.kinds.find((k) => k.value === form.kind)?.format);
 const err = (key) => form.errors[key];
@@ -69,11 +108,14 @@ function submit() {
     form.transform((data) => ({
         ...data,
         isomorph_group: data.isomorph_group || null,
+        form: canHaveForm.value && data.form ? data.form : null,
+        session_number: canHaveForm.value && data.form ? null : data.session_number,
         test_cases: format.value === 'code' ? data.test_cases : null,
         mcq_options: format.value === 'mcq' ? data.mcq_options : null,
         mcq_answer: format.value === 'mcq' ? data.mcq_answer : null,
         starter_code: format.value === 'code' ? data.starter_code : null,
         reference_solution: format.value === 'code' ? data.reference_solution : null,
+        scoring_key: cleanScoringKey(data.scoring_key),
     }));
 
     if (editing.value) {
@@ -97,7 +139,14 @@ function submit() {
         <form class="grid gap-6 xl:grid-cols-2" @submit.prevent="submit">
             <fieldset :disabled="locked" class="space-y-6">
                 <section class="card grid gap-4 p-4 sm:grid-cols-3">
-                    <Field label="Oturum" :error="err('session_number')">
+                    <Field v-if="canHaveForm" label="A/B formu" hint="Formlu görevin oturumu form sırasına göre belirlenir" :error="err('form')">
+                        <select v-model="form.form" class="input">
+                            <option value="">Form yok (sabit oturum)</option>
+                            <option value="A">Form A</option>
+                            <option value="B">Form B</option>
+                        </select>
+                    </Field>
+                    <Field v-if="!(canHaveForm && form.form)" label="Oturum" :error="err('session_number')">
                         <select v-model.number="form.session_number" class="input">
                             <option :value="0">Ön değerlendirme</option>
                             <option :value="1">1. oturum</option>
@@ -115,8 +164,8 @@ function submit() {
                     <Field v-if="format === 'code'" label="En az okuma (sn)" :error="err('min_reading_seconds')"><input v-model.number="form.min_reading_seconds" type="number" class="input"></Field>
                     <Field v-if="format === 'code'" label="Sessiz planlama (sn)" hint="EEG analiz penceresi" :error="err('planning_seconds')"><input v-model.number="form.planning_seconds" type="number" class="input"></Field>
                     <label class="flex items-center gap-2 text-sm sm:col-span-2">
-                        <input v-model="form.help_allowed" type="checkbox" class="rounded border-stone-300" :disabled="form.session_number !== 1">
-                        Koşula göre yardım açık (yalnızca 1. oturum)
+                        <input v-model="form.help_allowed" type="checkbox" class="rounded border-stone-300" :disabled="!helpEditable">
+                        Koşula göre yardım açık (yalnızca 1. oturum; formlu görevde 2. oturumda her zaman kapalı)
                     </label>
                     <label class="flex items-center gap-2 text-sm"><input v-model="form.is_active" type="checkbox" class="rounded border-stone-300"> Etkin</label>
                     <p v-if="err('help_allowed')" class="text-xs text-red-700 sm:col-span-3">{{ err('help_allowed') }}</p>
@@ -153,6 +202,81 @@ function submit() {
                     </div>
                     <p v-if="err('mcq_answer') || err('mcq_options')" class="text-xs text-red-700">{{ err('mcq_answer') || err('mcq_options') }}</p>
                     <button type="button" class="btn btn-secondary btn-sm" @click="addOption">Seçenek ekle</button>
+                </section>
+
+                <section class="card space-y-4 p-4">
+                    <div>
+                        <h2 class="card-title">Görev künyesi ve puanlama anahtarı</h2>
+                        <p class="text-xs text-stone-500">Yalnızca araştırmacılar görür; katılımcıya ve YZ asistanına gönderilmez. Puanlayıcı ekranında gösterilir.</p>
+                    </div>
+
+                    <div class="grid gap-4 sm:grid-cols-3">
+                        <Field label="Ölçtüğü değişken" :error="err('scoring_key.measures')">
+                            <select v-model="key.measures" class="input">
+                                <option value="">—</option>
+                                <option v-for="m in measures" :key="m.value" :value="m.value">{{ m.label }}</option>
+                            </select>
+                        </Field>
+                        <Field label="Tahmini zorluk" :error="err('scoring_key.difficulty')">
+                            <select v-model="key.difficulty" class="input">
+                                <option value="">—</option>
+                                <option value="kolay">Kolay</option>
+                                <option value="orta">Orta</option>
+                                <option value="zor">Zor</option>
+                            </select>
+                        </Field>
+                        <Field label="Tahmini süre (dk)" :error="err('scoring_key.estimated_minutes')"><input v-model.number="key.estimated_minutes" type="number" min="0" class="input"></Field>
+                    </div>
+                    <Field label="Beklenen çözüm yaklaşımı" :error="err('scoring_key.expected_approach')"><textarea v-model="key.expected_approach" rows="3" class="input" /></Field>
+                    <Field label="Neden bu kategoride?" hint="Ör. uzak transferde öğrencinin ilkeyi kendisinin fark etmesi gerekir" :error="err('scoring_key.category_rationale')"><textarea v-model="key.category_rationale" rows="3" class="input" /></Field>
+
+                    <div>
+                        <p class="label">Alternatif doğru çözümler</p>
+                        <div v-for="(item, index) in key.alternative_solutions" :key="index" class="mb-2 grid grid-cols-[1fr_auto] items-start gap-2">
+                            <textarea v-model="key.alternative_solutions[index]" rows="3" class="input code" />
+                            <button type="button" class="btn btn-ghost btn-sm" @click="key.alternative_solutions.splice(index, 1)">Sil</button>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" @click="key.alternative_solutions.push('')">Çözüm ekle</button>
+                    </div>
+
+                    <div>
+                        <p class="label">Kısmi puan ölçütleri</p>
+                        <div v-for="(item, index) in key.partial_credit" :key="index" class="mb-2 grid grid-cols-[1fr_6rem_auto] items-center gap-2">
+                            <input v-model="item.criterion" type="text" class="input" placeholder="Temel durum doğru ama özyineleme eksik">
+                            <input v-model.number="item.points" type="number" step="0.5" class="input" placeholder="puan">
+                            <button type="button" class="btn btn-ghost btn-sm" @click="key.partial_credit.splice(index, 1)">Sil</button>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" @click="key.partial_credit.push({ criterion: '', points: 0 })">Ölçüt ekle</button>
+                    </div>
+
+                    <div>
+                        <p class="label">Temel kavramsal hatalar</p>
+                        <div v-for="(item, index) in key.misconceptions" :key="index" class="mb-2 grid grid-cols-[10rem_1fr_auto] items-center gap-2">
+                            <input v-model="item.code" type="text" class="input code" placeholder="temel_durum_yok">
+                            <input v-model="item.description" type="text" class="input" placeholder="Açıklama">
+                            <button type="button" class="btn btn-ghost btn-sm" @click="key.misconceptions.splice(index, 1)">Sil</button>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" @click="key.misconceptions.push({ code: '', description: '' })">Hata ekle</button>
+                    </div>
+
+                    <div v-if="form.kind === 'debugging' || key.target_bugs.length">
+                        <p class="label">Bulunması gereken hatalar (hata bulma görevi)</p>
+                        <div v-for="(item, index) in key.target_bugs" :key="index" class="mb-2 grid grid-cols-[10rem_1fr_auto] items-center gap-2">
+                            <input v-model="item.line_hint" type="text" class="input code" placeholder="satır 3">
+                            <input v-model="item.description" type="text" class="input" placeholder="Hatanın tanımı">
+                            <button type="button" class="btn btn-ghost btn-sm" @click="key.target_bugs.splice(index, 1)">Sil</button>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" @click="key.target_bugs.push({ line_hint: '', description: '' })">Hata ekle</button>
+                    </div>
+
+                    <div v-if="form.kind === 'explanation' || key.explanation_elements.length">
+                        <p class="label">İyi bir açıklamada bulunması gereken unsurlar</p>
+                        <div v-for="(item, index) in key.explanation_elements" :key="index" class="mb-2 grid grid-cols-[1fr_auto] items-center gap-2">
+                            <input v-model="key.explanation_elements[index]" type="text" class="input">
+                            <button type="button" class="btn btn-ghost btn-sm" @click="key.explanation_elements.splice(index, 1)">Sil</button>
+                        </div>
+                        <button type="button" class="btn btn-secondary btn-sm" @click="key.explanation_elements.push('')">Unsur ekle</button>
+                    </div>
                 </section>
 
                 <div v-if="!locked" class="flex justify-end gap-2">

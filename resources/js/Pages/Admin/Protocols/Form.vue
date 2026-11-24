@@ -4,6 +4,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import ProtocolTabs from '@/Components/ProtocolTabs.vue';
+import DesignWarnings from '@/Components/DesignWarnings.vue';
 import Field from '@/Components/Field.vue';
 
 const props = defineProps({
@@ -12,6 +13,7 @@ const props = defineProps({
     providers: Array,
     existingProtocols: Array,
     providerKeys: Object,
+    designWarnings: { type: Array, default: () => [] },
 });
 
 const editing = computed(() => Boolean(props.protocol.id));
@@ -66,6 +68,8 @@ function submit() {
         </PageHeader>
 
         <ProtocolTabs v-if="editing" :protocol="protocol" />
+
+        <DesignWarnings v-if="editing" :warnings="designWarnings" />
 
         <div v-if="locked" class="mb-4 rounded border border-stone-300 bg-stone-100 px-3 py-2 text-sm">Bu sürüm dondurulmuş; alanlar salt okunur. Değişiklik için yeni bir sürüm oluşturup içerikleri kopyalayın.</div>
 
@@ -159,6 +163,7 @@ function submit() {
                     <Field label="Orta tabaka üst sınırı (ön test %)" :error="err('settings.stratification.medium_upper_percent')"><input v-model.number="form.settings.stratification.medium_upper_percent" type="number" class="input"></Field>
                     <Field label="Blok büyüklükleri" hint="3'ün katları, virgülle" :error="err('settings.stratification.block_sizes')"><input v-model="blockSizes" type="text" class="input"></Field>
                     <Field label="Çift puanlanacak açıklama oranı (%)" :error="err('settings.rating.double_rating_percent')"><input v-model.number="form.settings.rating.double_rating_percent" type="number" class="input"></Field>
+                    <Field label="Kavram ön kontrolü bayrak eşiği (%)" hint="Üstünde alan katılımcı işaretlenir; otomatik dışlama yapılmaz" :error="err('settings.screening.concept_precheck_exclude_percent')"><input v-model.number="form.settings.screening.concept_precheck_exclude_percent" type="number" class="input"></Field>
                 </section>
 
                 <section v-show="section === 'quality'" class="card grid gap-4 p-4 sm:grid-cols-3">

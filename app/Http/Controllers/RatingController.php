@@ -46,6 +46,7 @@ class RatingController extends Controller
                 'task_title' => $attempt->task->title,
                 'task_prompt' => $attempt->task->prompt,
                 'explanation' => $attempt->explanation_text,
+                'scoring_key' => $attempt->task->scoring_key,
             ],
             'criteria' => $attempt->task->protocolVersion->rubricCriteria()->orderBy('sort_order')->get()
                 ->map(fn (RubricCriterion $criterion) => $criterion->only(['key', 'label', 'description', 'min_score', 'max_score', 'anchors'])),

@@ -50,13 +50,21 @@ class ProtocolFreezeController extends Controller
         $problems = [];
         $tasks = $protocol->tasks()->where('is_active', true)->get();
 
+        $formTasks = $tasks->whereNotNull('form');
+
         foreach ([0 => 'ön değerlendirme', 1 => '1. oturum', 2 => '2. oturum'] as $session => $label) {
-            if ($tasks->where('session_number', $session)->isEmpty()) {
+            if ($tasks->whereNull('form')->where('session_number', $session)->isEmpty() && ($session === 0 || $formTasks->isEmpty())) {
                 $problems[] = "{$label} için görev yok.";
             }
         }
 
-        if ($tasks->where('session_number', 2)->where('kind', TaskKind::FarTransfer)->isEmpty()) {
+        if ($formTasks->isNotEmpty() && $formTasks->pluck('form')->unique()->count() < 2) {
+            $problems[] = 'Formlu görevler var ama A ve B formlarından biri boş; karşı dengeleme için iki form da gerekir.';
+        }
+
+        $secondSessionFar = $tasks->filter(fn ($task) => $task->kind === TaskKind::FarTransfer && ($task->form !== null || $task->session_number === 2));
+
+        if ($secondSessionFar->isEmpty()) {
             $problems[] = '2. oturumda birincil sonuç için uzak transfer görevi yok.';
         }
 

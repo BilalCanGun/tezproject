@@ -60,6 +60,15 @@ class TaskFactory extends Factory
         ]);
     }
 
+    /**
+     * A counterbalanced form task: no fixed session, shown in the session the
+     * participant's form order assigns to this form.
+     */
+    public function withForm(string $form, TaskKind $kind = TaskKind::FarTransfer): static
+    {
+        return $this->state(fn () => ['form' => $form, 'session_number' => null, 'kind' => $kind]);
+    }
+
     public function kind(TaskKind $kind): static
     {
         return $this->state(fn () => ['kind' => $kind]);

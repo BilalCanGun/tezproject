@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\AssistantProvider;
 use App\Enums\ProtocolPhase;
+use App\Models\ProtocolVersion;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -75,6 +76,8 @@ class ProtocolVersionRequest extends FormRequest
             'settings.pilot.max_planning_violations_per_task' => ['required', 'numeric', 'between:0,50'],
 
             'settings.rating.double_rating_percent' => ['required', 'integer', 'between:0,100'],
+
+            'settings.screening.concept_precheck_exclude_percent' => ['required', 'numeric', 'between:0,100'],
         ];
     }
 
@@ -95,12 +98,18 @@ class ProtocolVersionRequest extends FormRequest
     }
 
     /**
+     * Validated settings over the current (or default) settings, so values
+     * without a form field, such as the per-session task order, are stored
+     * with the protocol and frozen with it.
+     *
      * @return array<string, mixed>
      */
     public function settings(): array
     {
-        $settings = $this->validated('settings');
-        $settings['stratification']['block_sizes'] = array_values(array_unique(array_map('intval', $settings['stratification']['block_sizes'])));
+        $protocol = $this->route('protocol');
+        $current = $protocol instanceof ProtocolVersion ? $protocol->resolvedSettings() : config('experiment.protocol_defaults');
+        $settings = array_replace_recursive($current, $this->validated('settings'));
+        $settings['stratification']['block_sizes'] = array_values(array_unique(array_map('intval', $this->validated('settings.stratification.block_sizes'))));
 
         return $settings;
     }

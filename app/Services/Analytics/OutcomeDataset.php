@@ -33,7 +33,10 @@ class OutcomeDataset
         'status' => 'Katılımcı son durumu',
         'condition' => 'direct_ai | socratic_ai | standard_resource',
         'stratum' => 'Ön test tabakası (low | medium | high)',
+        'form_order' => 'Görev formu sırası: AB = 1. oturum A, 2. oturum B; BA = tersi',
         'baseline_pct' => 'Ön değerlendirme başarı yüzdesi (kovaryat)',
+        'concept_precheck_percent' => 'Kavram ön kontrolü başarı yüzdesi (ön testten ayrı; tabakalamaya girmez)',
+        'concept_prior_knowledge_flag' => '1 = kavram ön kontrolü eşiği aşıldı, kavramı önceden biliyor olabilir (otomatik dışlama yok, araştırmacı karar verir)',
         'age' => 'Yaş',
         'gender' => 'Cinsiyet (beyan)',
         'occupation_type' => 'student | employee | other',
@@ -72,7 +75,7 @@ class OutcomeDataset
         return Participant::query()
             ->where('protocol_version_id', $protocol->id)
             ->whereNotNull('condition')
-            ->with(['sessions.attempts.task', 'sessions.attempts.ratings', 'sessions.qualityReview'])
+            ->with(['protocolVersion', 'sessions.attempts.task', 'sessions.attempts.ratings', 'sessions.qualityReview'])
             ->orderBy('code')
             ->lazy(50)
             ->map(fn (Participant $participant) => $this->row($participant, $protocol));
@@ -96,7 +99,10 @@ class OutcomeDataset
             'status' => $participant->status->value,
             'condition' => $participant->condition?->value,
             'stratum' => $participant->stratum?->value,
+            'form_order' => $participant->form_order,
             'baseline_pct' => $participant->baselinePercentage(),
+            'concept_precheck_percent' => $participant->conceptPrecheckPercentage(),
+            'concept_prior_knowledge_flag' => $participant->concept_precheck_max ? (int) $participant->mayKnowConcept() : null,
             'age' => $participant->age,
             'gender' => $participant->gender,
             'occupation_type' => $participant->occupation_type,

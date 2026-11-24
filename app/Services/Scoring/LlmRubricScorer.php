@@ -66,6 +66,12 @@ class LlmRubricScorer
             {$rubric}
             TXT;
 
+        $elements = collect($attempt->task->explanationElements())->map(fn (string $element) => "- {$element}")->implode("\n");
+
+        if ($elements !== '') {
+            $system .= "\n\nBu görev için iyi bir açıklamada bulunması beklenen unsurlar (puanlarken rubrikle birlikte dikkate al):\n{$elements}";
+        }
+
         $content = "Görev:\n{$attempt->task->prompt}\n\nKatılımcının açıklaması:\n\"\"\"\n{$attempt->explanation_text}\n\"\"\"";
 
         $reply = $this->clients->make($provider)->complete(new AssistantRequest(

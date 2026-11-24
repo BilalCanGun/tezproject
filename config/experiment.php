@@ -72,11 +72,22 @@ return [
             'learning_target_minutes' => 30,
             'session1_target_minutes' => 90,
             'session2_target_minutes' => 45,
+            // Kind order inside each session; ties fall back to sort_order, then id.
+            // Session 2 opens with unassisted far transfer (primary outcome) so that
+            // near transfer, debugging or recall items cannot remind the concept first.
+            'task_order' => [
+                0 => ['baseline', 'concept_precheck'],
+                1 => ['learning', 'near_transfer', 'far_transfer', 'debugging', 'explanation'],
+                2 => ['far_transfer', 'near_transfer', 'debugging', 'delayed_recall', 'explanation'],
+            ],
         ],
         'stratification' => [
             'low_upper_percent' => 40,
             'medium_upper_percent' => 70,
             'block_sizes' => [3, 6],
+        ],
+        'screening' => [
+            'concept_precheck_exclude_percent' => 75,
         ],
         'sample' => [
             'completers_per_condition' => 20,

@@ -36,11 +36,12 @@ class ParticipantFactory extends Factory
         return $this->state(fn () => ['baseline_score' => $score, 'baseline_max' => $max]);
     }
 
-    public function randomized(AssistanceCondition $condition, SkillStratum $stratum = SkillStratum::Medium): static
+    public function randomized(AssistanceCondition $condition, SkillStratum $stratum = SkillStratum::Medium, string $formOrder = 'AB'): static
     {
         return $this->withBaseline()->state(fn () => [
             'status' => ParticipantStatus::Randomized,
             'condition' => $condition,
+            'form_order' => $formOrder,
             'stratum' => $stratum,
             'randomized_at' => now(),
         ]);

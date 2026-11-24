@@ -12,12 +12,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 #[Fillable([
-    'protocol_version_id', 'session_number', 'kind', 'title', 'isomorph_group', 'sort_order',
-    'prompt', 'starter_code', 'reference_solution', 'test_cases', 'mcq_options', 'mcq_answer',
+    'protocol_version_id', 'session_number', 'form', 'kind', 'title', 'isomorph_group', 'sort_order',
+    'prompt', 'starter_code', 'reference_solution', 'test_cases', 'mcq_options', 'mcq_answer', 'scoring_key',
     'max_score', 'min_reading_seconds', 'planning_seconds', 'time_limit_seconds',
     'help_allowed', 'is_active',
 ])]
-#[Hidden(['reference_solution', 'mcq_answer'])]
+#[Hidden(['reference_solution', 'mcq_answer', 'scoring_key'])]
 class Task extends Model
 {
     /** @use HasFactory<TaskFactory> */
@@ -33,10 +33,33 @@ class Task extends Model
             'session_number' => 'integer',
             'test_cases' => 'array',
             'mcq_options' => 'array',
+            'scoring_key' => 'array',
             'max_score' => 'float',
             'help_allowed' => 'boolean',
             'is_active' => 'boolean',
         ];
+    }
+
+    /**
+     * Kinds that come in two counterbalanced isomorphic forms (A/B).
+     *
+     * @var list<TaskKind>
+     */
+    public const FORM_KINDS = [TaskKind::NearTransfer, TaskKind::FarTransfer, TaskKind::Debugging];
+
+    /**
+     * Elements a good explanation of this task is expected to contain.
+     *
+     * @return list<string>
+     */
+    public function explanationElements(): array
+    {
+        return array_values(array_filter((array) ($this->scoring_key['explanation_elements'] ?? []), fn ($element) => is_string($element) && trim($element) !== ''));
+    }
+
+    public function hasForm(): bool
+    {
+        return $this->form !== null;
     }
 
     /**

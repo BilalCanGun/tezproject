@@ -5,6 +5,7 @@ namespace App\Enums;
 enum TaskKind: string
 {
     case Baseline = 'baseline';
+    case ConceptPrecheck = 'concept_precheck';
     case Learning = 'learning';
     case NearTransfer = 'near_transfer';
     case FarTransfer = 'far_transfer';
@@ -16,6 +17,7 @@ enum TaskKind: string
     {
         return match ($this) {
             self::Baseline => 'Ön test maddesi',
+            self::ConceptPrecheck => 'Kavram ön kontrolü',
             self::Learning => 'Öğrenme görevi',
             self::NearTransfer => 'Yakın transfer',
             self::FarTransfer => 'Uzak transfer',
@@ -31,10 +33,19 @@ enum TaskKind: string
     public function responseFormat(): string
     {
         return match ($this) {
-            self::Baseline, self::DelayedRecall => 'mcq',
+            self::Baseline, self::ConceptPrecheck, self::DelayedRecall => 'mcq',
             self::Explanation => 'text',
             default => 'code',
         };
+    }
+
+    /**
+     * Kinds answered in the pre-assessment (session 0). They never count as
+     * learning outcomes.
+     */
+    public function isPreAssessment(): bool
+    {
+        return in_array($this, [self::Baseline, self::ConceptPrecheck], true);
     }
 
     public function isCoding(): bool

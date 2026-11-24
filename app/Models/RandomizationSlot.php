@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['protocol_version_id', 'stratum', 'block_number', 'block_size', 'position', 'condition'])]
+#[Fillable(['protocol_version_id', 'stratum', 'block_number', 'block_size', 'position', 'condition', 'form_order'])]
 class RandomizationSlot extends Model
 {
     /**

@@ -46,6 +46,35 @@ function submit() {
                     <summary class="cursor-pointer px-4 py-3 text-sm font-medium">Görev metni</summary>
                     <div class="border-t border-stone-200 p-4"><Markdown :source="attempt.task_prompt" /></div>
                 </details>
+                <section v-if="attempt.scoring_key" class="card">
+                    <div class="card-header"><h2 class="card-title">Puanlama anahtarı</h2></div>
+                    <div class="space-y-3 p-4 text-sm">
+                        <div v-if="attempt.scoring_key.explanation_elements?.length">
+                            <p class="font-medium">İyi bir açıklamada bulunması gereken unsurlar</p>
+                            <ul class="list-disc pl-5 text-stone-700"><li v-for="(item, i) in attempt.scoring_key.explanation_elements" :key="i">{{ item }}</li></ul>
+                        </div>
+                        <div v-if="attempt.scoring_key.expected_approach">
+                            <p class="font-medium">Beklenen çözüm yaklaşımı</p>
+                            <p class="whitespace-pre-wrap text-stone-700">{{ attempt.scoring_key.expected_approach }}</p>
+                        </div>
+                        <div v-if="attempt.scoring_key.misconceptions?.length">
+                            <p class="font-medium">Temel kavramsal hatalar</p>
+                            <ul class="list-disc pl-5 text-stone-700"><li v-for="(item, i) in attempt.scoring_key.misconceptions" :key="i"><span class="code">{{ item.code }}</span> — {{ item.description }}</li></ul>
+                        </div>
+                        <div v-if="attempt.scoring_key.partial_credit?.length">
+                            <p class="font-medium">Kısmi puan ölçütleri</p>
+                            <ul class="list-disc pl-5 text-stone-700"><li v-for="(item, i) in attempt.scoring_key.partial_credit" :key="i">{{ item.criterion }} ({{ item.points }} puan)</li></ul>
+                        </div>
+                        <div v-if="attempt.scoring_key.target_bugs?.length">
+                            <p class="font-medium">Bulunması gereken hatalar</p>
+                            <ul class="list-disc pl-5 text-stone-700"><li v-for="(item, i) in attempt.scoring_key.target_bugs" :key="i"><span v-if="item.line_hint" class="code">{{ item.line_hint }}: </span>{{ item.description }}</li></ul>
+                        </div>
+                        <div v-if="attempt.scoring_key.alternative_solutions?.length">
+                            <p class="font-medium">Alternatif doğru çözümler</p>
+                            <pre v-for="(item, i) in attempt.scoring_key.alternative_solutions" :key="i" class="code mt-1 overflow-x-auto rounded bg-stone-50 p-2 text-xs">{{ item }}</pre>
+                        </div>
+                    </div>
+                </section>
             </div>
 
             <form class="space-y-4" @submit.prevent="submit">

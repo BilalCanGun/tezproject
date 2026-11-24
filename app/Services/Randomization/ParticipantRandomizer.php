@@ -55,6 +55,7 @@ class ParticipantRandomizer
             $participant->forceFill([
                 'stratum' => $stratum,
                 'condition' => $slot->condition,
+                'form_order' => $slot->form_order,
                 'status' => ParticipantStatus::Randomized,
                 'randomized_at' => now(),
                 'randomized_by' => $assignedBy->id,

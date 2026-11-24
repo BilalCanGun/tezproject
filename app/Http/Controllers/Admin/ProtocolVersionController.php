@@ -7,6 +7,7 @@ use App\Enums\ProtocolPhase;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ProtocolVersionRequest;
 use App\Models\ProtocolVersion;
+use App\Services\Analytics\PilotValidation;
 use App\Services\Assistance\DefaultPrompts;
 use App\Services\AuditLogger;
 use App\Services\Protocols\ProtocolCloner;
@@ -82,7 +83,7 @@ class ProtocolVersionController extends Controller
         return redirect()->route('admin.protocols.edit', $protocol)->with('success', 'Protokol sürümü oluşturuldu.');
     }
 
-    public function edit(ProtocolVersion $protocol): Response
+    public function edit(ProtocolVersion $protocol, PilotValidation $validation): Response
     {
         return Inertia::render('Admin/Protocols/Form', [
             'protocol' => [
@@ -92,6 +93,7 @@ class ProtocolVersionController extends Controller
                 'is_frozen' => $protocol->isFrozen(),
                 'frozen_at' => $protocol->frozen_at?->toIso8601String(),
             ],
+            'designWarnings' => $validation->designWarnings($protocol),
             ...$this->formOptions(),
         ]);
     }

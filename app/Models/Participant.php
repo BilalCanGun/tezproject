@@ -18,7 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
     'protocol_version_id', 'code', 'status', 'consent_version', 'consented_at', 'data_sharing_level',
     'age', 'gender', 'occupation_type', 'education_level', 'programming_experience_months',
     'primary_language', 'vision_correction', 'handedness', 'screening', 'exclusion_reason',
-    'withdrawn_at', 'notes', 'created_by',
+    'withdrawn_at', 'notes', 'created_by', 'concept_precheck_score', 'concept_precheck_max',
 ])]
 class Participant extends Model
 {
@@ -54,6 +54,8 @@ class Participant extends Model
             'stratum' => SkillStratum::class,
             'baseline_score' => 'float',
             'baseline_max' => 'float',
+            'concept_precheck_score' => 'float',
+            'concept_precheck_max' => 'float',
             'randomized_at' => 'datetime',
             'consented_at' => 'datetime',
             'withdrawn_at' => 'datetime',
@@ -68,6 +70,46 @@ class Participant extends Model
         }
 
         return round($this->baseline_score / $this->baseline_max * 100, 1);
+    }
+
+    /**
+     * The task form (A or B) this participant receives in the given session,
+     * following the counterbalanced form order. Null outside sessions 1 and 2
+     * or before randomisation.
+     */
+    public function formForSession(SessionKind $kind): ?string
+    {
+        if (! in_array($this->form_order, ['AB', 'BA'], true)) {
+            return null;
+        }
+
+        return match ($kind) {
+            SessionKind::Learning => $this->form_order[0],
+            SessionKind::Delayed => $this->form_order[1],
+            default => null,
+        };
+    }
+
+    public function conceptPrecheckPercentage(): ?float
+    {
+        if ($this->concept_precheck_score === null || ! $this->concept_precheck_max) {
+            return null;
+        }
+
+        return round($this->concept_precheck_score / $this->concept_precheck_max * 100, 1);
+    }
+
+    /**
+     * True when the concept pre-check suggests the participant may already know
+     * the target concept. This is only a flag: the researcher decides whether
+     * to exclude, nothing is excluded automatically.
+     */
+    public function mayKnowConcept(): bool
+    {
+        $percent = $this->conceptPrecheckPercentage();
+
+        return $percent !== null
+            && $percent > (float) $this->protocolVersion->setting('screening.concept_precheck_exclude_percent');
     }
 
     public function session(SessionKind $kind): ?ExperimentSession

@@ -35,10 +35,11 @@ class AllocationListGenerator
         }
 
         $randomizer = new Randomizer(new Xoshiro256StarStar($seed));
+        $formRandomizer = new Randomizer(new Xoshiro256StarStar(hash('sha256', "form-order:{$seed}", true)));
         $conditions = AssistanceCondition::cases();
         $created = [];
 
-        DB::transaction(function () use ($protocol, $slotsPerStratum, $blockSizes, $randomizer, $conditions, &$created) {
+        DB::transaction(function () use ($protocol, $slotsPerStratum, $blockSizes, $randomizer, $formRandomizer, $conditions, &$created) {
             $protocol->randomizationSlots()->delete();
 
             foreach (SkillStratum::cases() as $stratum) {
@@ -70,11 +71,37 @@ class AllocationListGenerator
                     }
                 }
 
-                RandomizationSlot::insert($rows);
+                RandomizationSlot::insert($this->withFormOrders($rows, $formRandomizer));
                 $created[$stratum->value] = count($rows);
             }
         });
 
         return $created;
+    }
+
+    /**
+     * Counterbalance the task form order inside every stratum x condition
+     * cell: AB and BA alternate in slot order from a random starting order, so
+     * the two orders never differ by more than one in any cell. A separate
+     * generator derived from the seed keeps the condition sequence of an
+     * existing seed unchanged.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return list<array<string, mixed>>
+     */
+    private function withFormOrders(array $rows, Randomizer $formRandomizer): array
+    {
+        $next = [];
+
+        foreach (AssistanceCondition::cases() as $condition) {
+            $next[$condition->value] = $formRandomizer->getInt(0, 1) === 0 ? 'AB' : 'BA';
+        }
+
+        foreach ($rows as $index => $row) {
+            $rows[$index]['form_order'] = $next[$row['condition']];
+            $next[$row['condition']] = $next[$row['condition']] === 'AB' ? 'BA' : 'AB';
+        }
+
+        return $rows;
     }
 }

@@ -73,7 +73,7 @@ class DatasetExporter
     private function attemptHeader(): array
     {
         return [
-            'participant_code', 'condition', 'session_number', 'attempt_id', 'task_id', 'task_kind', 'isomorph_group',
+            'participant_code', 'condition', 'form_order', 'session_number', 'attempt_id', 'task_id', 'task_kind', 'task_form', 'isomorph_group',
             'help_available', 'end_reason', 'auto_score', 'max_score', 'tests_passed', 'tests_total',
             'reading_sec', 'planning_sec', 'coding_sec', 'checking_sec',
             'run_count', 'failed_run_count', 'changed_runs_after_failure', 'seconds_after_first_failure',
@@ -95,10 +95,12 @@ class DatasetExporter
             ->map(fn (TaskAttempt $attempt) => [
                 $attempt->session->participant->code,
                 $attempt->session->condition?->value,
+                $attempt->session->participant->form_order,
                 $attempt->session->session_number,
                 $attempt->id,
                 $attempt->task_id,
                 $attempt->task->kind->value,
+                $attempt->task->form,
                 $attempt->task->isomorph_group,
                 $attempt->help_available,
                 $attempt->end_reason,

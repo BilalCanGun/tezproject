@@ -151,6 +151,8 @@ const labels = {
                         <dd><ConditionBadge :condition="participant.condition" :label="participant.condition_label" /></dd>
                         <dt class="text-stone-500">Ön test</dt>
                         <dd>{{ participant.baseline_pct !== null ? `%${participant.baseline_pct} (${participant.baseline_score}/${participant.baseline_max})` : '—' }}</dd>
+                        <dt class="text-stone-500">Kavram ön kontrolü</dt>
+                        <dd>{{ participant.concept_precheck_pct !== null ? `%${participant.concept_precheck_pct} (${participant.concept_precheck_score}/${participant.concept_precheck_max})` : '—' }}</dd>
                         <dt class="text-stone-500">Tabaka</dt>
                         <dd>{{ participant.stratum_label ?? '—' }}</dd>
                         <dt class="text-stone-500">Atama zamanı</dt>
@@ -160,8 +162,11 @@ const labels = {
                     <p v-else-if="!participant.condition" class="mt-3 text-xs text-stone-500">Atama için onam kaydı ve tamamlanmış ön değerlendirme gerekir.</p>
                 </section>
 
-                <section v-if="participant.review_flags.length || participant.exclusion_reason" class="card border-amber-300 p-4">
+                <section v-if="participant.review_flags.length || participant.exclusion_reason || participant.may_know_concept" class="card border-amber-300 p-4">
                     <h2 class="card-title mb-2">Dikkat</h2>
+                    <p v-if="participant.may_know_concept" class="mb-2 text-sm text-amber-900">
+                        Kavramı önceden biliyor olabilir: kavram ön kontrolünde %{{ participant.concept_precheck_pct }} aldı (eşik %{{ participant.concept_precheck_threshold }}). Otomatik dışlama yapılmadı; dışlama kararı araştırmacıya aittir.
+                    </p>
                     <p v-if="participant.exclusion_reason" class="text-sm text-red-800">{{ participant.exclusion_reason }}</p>
                     <ul v-if="participant.review_flags.length" class="list-disc pl-5 text-sm text-amber-900">
                         <li v-for="flag in participant.review_flags" :key="flag">{{ flag }}</li>

@@ -6,9 +6,11 @@ use App\Enums\AssistanceCondition;
 use App\Enums\SessionKind;
 use App\Enums\SessionStatus;
 use App\Enums\TaskKind;
+use App\Http\Requests\TaskRequest;
 use App\Models\ExperimentSession;
 use App\Models\ProtocolVersion;
 use App\Models\QualityReview;
+use App\Models\Task;
 use App\Models\TaskAttempt;
 use Illuminate\Support\Collection;
 
@@ -33,7 +35,7 @@ class PilotValidation
 
         $learning = $sessions->where('session_number', SessionKind::Learning->value)->where('status', SessionStatus::Completed);
         $delayed = $sessions->where('session_number', SessionKind::Delayed->value)->where('status', SessionStatus::Completed);
-        $attempts = $sessions->flatMap->attempts->filter(fn (TaskAttempt $attempt) => $attempt->task->kind !== TaskKind::Baseline);
+        $attempts = $sessions->flatMap->attempts->filter(fn (TaskAttempt $attempt) => ! $attempt->task->kind->isPreAssessment());
         $reviews = $sessions->pluck('qualityReview')->filter();
         $manipulation = $this->manipulationCheck->forProtocol($protocol)['conditions'];
         $p = fn (string $key) => $protocol->setting("pilot.{$key}");
@@ -155,6 +157,64 @@ class PilotValidation
                 '%',
             ),
         ];
+    }
+
+    /**
+     * Design checks on the task battery. They never block freezing; they are
+     * shown to the researcher as warnings on the protocol pages.
+     *
+     * @return list<string>
+     */
+    public function designWarnings(ProtocolVersion $protocol): array
+    {
+        $tasks = $protocol->tasks()->where('is_active', true)->get();
+        $warnings = [];
+        $count = fn (TaskKind $kind, string $form) => $tasks->where('form', $form)->where('kind', $kind)->count();
+
+        foreach (['A', 'B'] as $form) {
+            if (($far = $count(TaskKind::FarTransfer, $form)) < 3) {
+                $warnings[] = "Form {$form} içinde {$far} uzak transfer görevi var; birincil sonuç tek göreve dayanmasın diye her formda en az 3 olmalı.";
+            }
+        }
+
+        foreach (Task::FORM_KINDS as $kind) {
+            if ($count($kind, 'A') !== $count($kind, 'B')) {
+                $warnings[] = "{$kind->label()} görev sayısı formlar arasında eşit değil (A: {$count($kind, 'A')}, B: {$count($kind, 'B')}).";
+            }
+        }
+
+        $recall = $tasks->where('kind', TaskKind::DelayedRecall)->where('session_number', SessionKind::Delayed->value);
+
+        if ($recall->isEmpty()) {
+            $warnings[] = '2. oturumda gecikmeli hatırlama görevi yok.';
+        }
+
+        $farGroups = $tasks->where('kind', TaskKind::FarTransfer)->pluck('isomorph_group')->filter()->unique();
+
+        foreach ($recall->filter(fn (Task $task) => $task->isomorph_group && $farGroups->contains($task->isomorph_group)) as $task) {
+            $warnings[] = "Gecikmeli hatırlama görevi \"{$task->title}\" bir uzak transfer göreviyle aynı izomorf grubu ({$task->isomorph_group}) paylaşıyor; hatırlama ve uzak transfer ayrı görevlerle ölçülmeli.";
+        }
+
+        foreach ($tasks as $task) {
+            $measures = $task->scoring_key['measures'] ?? null;
+            $persistenceOnCoding = $measures === TaskRequest::MEASURE_PERSISTENCE && $task->kind->isCoding();
+
+            if ($measures && $measures !== $task->kind->value && ! $persistenceOnCoding) {
+                $warnings[] = "\"{$task->title}\" görevinin türü {$task->kind->label()}, ama puanlama anahtarında ölçtüğü değişken \"{$measures}\" olarak girilmiş.";
+            }
+        }
+
+        $baseline = $tasks->where('session_number', SessionKind::Baseline->value)->where('kind', TaskKind::Baseline)->count();
+
+        if ($baseline < 8 || $baseline > 12) {
+            $warnings[] = "Ön değerlendirmede {$baseline} ön test maddesi var; genel programlama becerisi için 8–12 madde önerilir.";
+        }
+
+        if ($tasks->where('kind', TaskKind::ConceptPrecheck)->isEmpty()) {
+            $warnings[] = 'Ön değerlendirmede kavram ön kontrolü yok; hedef kavramı önceden bilen katılımcılar ayırt edilemez.';
+        }
+
+        return $warnings;
     }
 
     /**

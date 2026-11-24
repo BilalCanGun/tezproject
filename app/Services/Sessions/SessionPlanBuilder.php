@@ -6,6 +6,7 @@ use App\Enums\AssistanceCondition;
 use App\Enums\SessionKind;
 use App\Enums\StepType;
 use App\Models\ExperimentSession;
+use App\Models\Participant;
 use App\Models\ProtocolVersion;
 use App\Models\Task;
 use Illuminate\Support\Collection;
@@ -25,14 +26,23 @@ class SessionPlanBuilder
             throw new RuntimeException('Bu oturumun adım planı zaten oluşturulmuş.');
         }
 
-        $protocol = $session->participant->protocolVersion;
+        $participant = $session->participant;
+        $protocol = $participant->protocolVersion;
         $kind = $session->kind();
+        $form = $this->formFor($participant, $kind, $protocol);
         $tasks = $protocol->tasks()
-            ->where('session_number', $kind->value)
             ->where('is_active', true)
+            ->where(function ($query) use ($kind, $form) {
+                $query->where(fn ($query) => $query->whereNull('form')->where('session_number', $kind->value));
+
+                if ($form) {
+                    $query->orWhere('form', $form);
+                }
+            })
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get();
+        $tasks = $this->orderByKind($tasks, $protocol, $kind);
 
         if ($tasks->isEmpty()) {
             throw new RuntimeException("Protokolde {$kind->label()} için etkin görev bulunmuyor.");
@@ -124,6 +134,45 @@ class SessionPlanBuilder
             $this->syncGesture($protocol, 'end'),
             $this->closing('Çalışmanın tüm bölümlerini tamamladınız. Katkınız için teşekkür ederiz.'),
         ];
+    }
+
+    /**
+     * The form shown in this session. Sessions 1 and 2 need the participant's
+     * counterbalanced form order as soon as the protocol has form tasks.
+     */
+    private function formFor(Participant $participant, SessionKind $kind, ProtocolVersion $protocol): ?string
+    {
+        if ($kind === SessionKind::Baseline) {
+            return null;
+        }
+
+        $form = $participant->formForSession($kind);
+
+        if (! $form && $protocol->tasks()->where('is_active', true)->whereNotNull('form')->exists()) {
+            throw new RuntimeException("{$participant->code} katılımcısının form sırası (A-B / B-A) yok. Formlu görevler için katılımcının form sırası içeren bir atama listesiyle rastgele atanması gerekir.");
+        }
+
+        return $form;
+    }
+
+    /**
+     * Order tasks by the protocol's kind order for the session, then by
+     * sort_order and id. Kinds missing from the order keep their place after
+     * the listed ones.
+     *
+     * @param  Collection<int, Task>  $tasks
+     * @return Collection<int, Task>
+     */
+    private function orderByKind(Collection $tasks, ProtocolVersion $protocol, SessionKind $kind): Collection
+    {
+        $order = array_values((array) $protocol->setting("session.task_order.{$kind->value}", []));
+        $rank = fn (Task $task) => ($position = array_search($task->kind->value, $order, true)) === false ? count($order) : $position;
+
+        return $tasks->sortBy([
+            fn (Task $a, Task $b) => $rank($a) <=> $rank($b),
+            fn (Task $a, Task $b) => $a->sort_order <=> $b->sort_order,
+            fn (Task $a, Task $b) => $a->id <=> $b->id,
+        ])->values();
     }
 
     private function conditionBriefing(AssistanceCondition $condition): string
