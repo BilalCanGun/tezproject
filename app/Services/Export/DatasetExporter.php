@@ -4,6 +4,7 @@ namespace App\Services\Export;
 
 use App\Enums\EventType;
 use App\Models\AiMessage;
+use App\Models\CodeReview;
 use App\Models\InteractionEvent;
 use App\Models\ProtocolVersion;
 use App\Models\Rating;
@@ -30,6 +31,7 @@ class DatasetExporter
         'attempts' => ['label' => 'Görev denemeleri (uzun format)', 'description' => 'Görev başına faz süreleri, puanlar, çalıştırma ve ısrar göstergeleri.'],
         'events' => ['label' => 'Etkileşim olayları ve markerlar', 'description' => 'Zaman damgalı tüm olaylar; LSL zamanı ve AOI koordinatları dahil.'],
         'ai_messages' => ['label' => 'YZ konuşmaları (anonimleştirilmiş)', 'description' => 'İstem/yanıt metinleri ve manipülasyon kontrol ölçümleri.'],
+        'code_reviews' => ['label' => 'Kod puanlamaları', 'description' => 'Kod görevlerinin insan puanları: kısmi puan ölçütleri, kavramsal hatalar, bulunan hatalar.'],
         'ratings' => ['label' => 'Açıklama puanları', 'description' => 'İnsan ve LLM puanlayıcı ölçüt puanları.'],
         'markers' => ['label' => 'Marker kod tablosu', 'description' => 'LSL marker kodu ↔ olay eşlemesi.'],
     ];
@@ -47,6 +49,7 @@ class DatasetExporter
             'attempts' => [$this->attemptHeader(), $this->attemptRows($protocol)],
             'events' => [['participant_code', 'session_number', 'sequence', 'type', 'marker_code', 'attempt_id', 'client_epoch_ms', 'client_perf_ms', 'lsl_time', 'payload_json'], $this->eventRows($protocol)],
             'ai_messages' => [['participant_code', 'condition', 'attempt_id', 'task_kind', 'role', 'created_at', 'content', 'provider', 'model', 'hint_level', 'latency_ms', 'input_tokens', 'output_tokens', 'guard_action', 'code_lines', 'question_count', 'full_solution', 'pre_guard_leak', 'error'], $this->aiRows($protocol)],
+            'code_reviews' => [['blind_id', 'attempt_id', 'participant_code', 'session_number', 'task_id', 'task_kind', 'task_form', 'rater_id', 'auto_score', 'human_score', 'max_score', 'alternative_solution', 'partial_credit_json', 'misconceptions_json', 'bugs_found_json'], $this->codeReviewRows($protocol)],
             'ratings' => [['blind_id', 'attempt_id', 'participant_code', 'session_number', 'rater_type', 'rater_id', 'total', 'scores_json'], $this->ratingRows($protocol)],
             'markers' => [['marker_code', 'event_type', 'description'], collect(EventType::cases())->filter(fn (EventType $type) => $type->markerCode() !== null)->map(fn (EventType $type) => [$type->markerCode(), $type->value, $type->description()])->sortBy(0)->values()],
             default => throw new InvalidArgumentException("Bilinmeyen veri seti: {$dataset}"),
@@ -74,7 +77,7 @@ class DatasetExporter
     {
         return [
             'participant_code', 'condition', 'form_order', 'session_number', 'attempt_id', 'task_id', 'task_kind', 'task_form', 'isomorph_group',
-            'help_available', 'end_reason', 'auto_score', 'max_score', 'tests_passed', 'tests_total',
+            'help_available', 'end_reason', 'auto_score', 'human_score', 'max_score', 'tests_passed', 'tests_total',
             'reading_sec', 'planning_sec', 'coding_sec', 'checking_sec',
             'run_count', 'failed_run_count', 'changed_runs_after_failure', 'seconds_after_first_failure',
             'typed_chars', 'deleted_chars', 'pasted_chars', 'ai_pasted_chars', 'self_written_ratio',
@@ -90,7 +93,7 @@ class DatasetExporter
         $seconds = fn ($from, $to) => $from && $to ? round($from->diffInMilliseconds($to) / 1000, 2) : null;
 
         return $this->attemptQuery($protocol)
-            ->with(['task', 'session.participant'])
+            ->with(['task', 'session.participant', 'codeReviews'])
             ->lazy(200)
             ->map(fn (TaskAttempt $attempt) => [
                 $attempt->session->participant->code,
@@ -105,6 +108,7 @@ class DatasetExporter
                 $attempt->help_available,
                 $attempt->end_reason,
                 $attempt->auto_score,
+                $attempt->reviewedScore(),
                 $attempt->task->max_score,
                 $attempt->tests_passed,
                 $attempt->tests_total,
@@ -205,6 +209,35 @@ class DatasetExporter
                 $rating->rater_id,
                 $rating->total,
                 json_encode($rating->scores),
+            ]);
+    }
+
+    /**
+     * @return iterable<array<int, mixed>>
+     */
+    private function codeReviewRows(ProtocolVersion $protocol): iterable
+    {
+        return CodeReview::query()
+            ->whereHas('attempt.task', fn ($query) => $query->where('protocol_version_id', $protocol->id))
+            ->with(['attempt.task', 'attempt.session.participant:id,code'])
+            ->orderBy('id')
+            ->lazyById(500)
+            ->map(fn (CodeReview $review) => [
+                RatingQueue::blindLabel($review->attempt),
+                $review->task_attempt_id,
+                $review->attempt->session->participant->code,
+                $review->attempt->session->session_number,
+                $review->attempt->task_id,
+                $review->attempt->task->kind->value,
+                $review->attempt->task->form,
+                $review->rater_id,
+                $review->attempt->auto_score,
+                $review->score,
+                $review->attempt->task->max_score,
+                $review->alternative_solution,
+                json_encode($review->partial_credit),
+                json_encode($review->misconceptions),
+                json_encode($review->bugs_found),
             ]);
     }
 

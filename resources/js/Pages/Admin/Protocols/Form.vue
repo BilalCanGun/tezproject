@@ -6,6 +6,7 @@ import PageHeader from '@/Components/PageHeader.vue';
 import ProtocolTabs from '@/Components/ProtocolTabs.vue';
 import DesignWarnings from '@/Components/DesignWarnings.vue';
 import Field from '@/Components/Field.vue';
+import Markdown from '@/Components/Markdown.vue';
 
 const props = defineProps({
     protocol: Object,
@@ -27,6 +28,8 @@ const form = useForm({
     description: props.protocol.description ?? '',
     concept_title: props.protocol.concept_title ?? '',
     concept_rationale: props.protocol.concept_rationale ?? '',
+    core_lesson: props.protocol.core_lesson ?? '',
+    learning_objectives: props.protocol.learning_objectives ?? [],
     system_prompt_direct: props.protocol.system_prompt_direct,
     system_prompt_socratic: props.protocol.system_prompt_socratic,
     copy_from: null,
@@ -41,6 +44,7 @@ const blockSizes = computed({
 
 const sections = [
     { key: 'general', label: 'Genel' },
+    { key: 'learning', label: 'Öğrenme içeriği' },
     { key: 'assistant', label: 'YZ koşulları' },
     { key: 'session', label: 'Oturum akışı' },
     { key: 'sample', label: 'Örneklem ve tabakalama' },
@@ -103,6 +107,26 @@ function submit() {
                     <Field label="Açıklama" :error="err('description')"><textarea v-model="form.description" rows="2" class="input" /></Field>
                     <Field label="Öğretilen kavram" :error="err('concept_title')"><input v-model="form.concept_title" type="text" class="input"></Field>
                     <Field label="Kavram seçim gerekçesi" :error="err('concept_rationale')" hint="Yeni olma, 20–30 dk'da öğretilebilme, yakın/uzak transfere uygunluk, ezberle çözülememe"><textarea v-model="form.concept_rationale" rows="4" class="input" /></Field>
+                </section>
+
+                <section v-show="section === 'learning'" class="space-y-6">
+                    <div class="card space-y-4 p-4">
+                        <h2 class="card-title">Öğrenme hedefleri</h2>
+                        <p class="text-xs text-stone-500">Görevler puanlama anahtarında bu hedeflere bağlanır; hiçbir görevin ölçmediği hedef uyarı olarak gösterilir.</p>
+                        <div v-for="(objective, index) in form.learning_objectives" :key="index" class="grid grid-cols-[10rem_1fr_auto] items-center gap-2">
+                            <input v-model="objective.key" type="text" class="input code" placeholder="tanima">
+                            <input v-model="objective.label" type="text" class="input" placeholder="Kavramı tanıma">
+                            <button type="button" class="btn btn-ghost btn-sm" @click="form.learning_objectives.splice(index, 1)">Sil</button>
+                        </div>
+                        <p v-if="err('learning_objectives')" class="text-xs text-red-700">{{ err('learning_objectives') }}</p>
+                        <button type="button" class="btn btn-secondary btn-sm" @click="form.learning_objectives.push({ key: '', label: '' })">Hedef ekle</button>
+                    </div>
+                    <div class="card grid gap-4 p-4 xl:grid-cols-2">
+                        <Field label="Ortak öğrenme içeriği (Markdown)" hint="1. oturumda üç koşulun da gördüğü temel kavram anlatımı; koşula özgü destekten önce gösterilir" :error="err('core_lesson')">
+                            <textarea v-model="form.core_lesson" rows="24" class="input code" />
+                        </Field>
+                        <div class="rounded border border-stone-200 p-4"><Markdown :source="form.core_lesson" /></div>
+                    </div>
                 </section>
 
                 <section v-show="section === 'assistant'" class="space-y-6">
@@ -183,6 +207,7 @@ function submit() {
                     <Field label="Sokratik en çok sızıntı oranı" :error="err('settings.pilot.max_socratic_leak_rate')"><input v-model.number="form.settings.pilot.max_socratic_leak_rate" type="number" step="0.01" class="input"></Field>
                     <Field label="Sokratik yanıt başına en az soru" :error="err('settings.pilot.min_socratic_questions_per_reply')"><input v-model.number="form.settings.pilot.min_socratic_questions_per_reply" type="number" step="0.1" class="input"></Field>
                     <Field label="Görev başına en çok planlama ihlali" :error="err('settings.pilot.max_planning_violations_per_task')"><input v-model.number="form.settings.pilot.max_planning_violations_per_task" type="number" step="0.1" class="input"></Field>
+                    <Field label="A/B formları arası en çok başarı farkı (puan %)" :error="err('settings.pilot.max_form_difference_percent')"><input v-model.number="form.settings.pilot.max_form_difference_percent" type="number" class="input"></Field>
                 </section>
 
                 <div v-if="!locked" class="flex items-center justify-end gap-3">

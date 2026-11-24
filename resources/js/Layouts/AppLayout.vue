@@ -20,6 +20,7 @@ const sections = computed(() => {
                 { label: 'Genel durum', route: 'dashboard', match: 'dashboard' },
                 { label: 'Katılımcılar', route: 'participants.index', match: 'participants.*' },
                 { label: 'Açıklama puanlama', route: 'ratings.index', match: 'ratings.*' },
+                { label: 'Kod puanlama', route: 'code-reviews.index', match: 'code-reviews.*' },
             ],
         },
     ];

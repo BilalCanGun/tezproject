@@ -54,6 +54,8 @@ class ProtocolVersionController extends Controller
                 'description' => '',
                 'concept_title' => '',
                 'concept_rationale' => '',
+                'core_lesson' => '',
+                'learning_objectives' => [],
                 'system_prompt_direct' => DefaultPrompts::DIRECT,
                 'system_prompt_socratic' => DefaultPrompts::SOCRATIC,
                 'settings' => config('experiment.protocol_defaults'),
@@ -87,7 +89,7 @@ class ProtocolVersionController extends Controller
     {
         return Inertia::render('Admin/Protocols/Form', [
             'protocol' => [
-                ...$protocol->only(['id', 'code', 'name', 'description', 'concept_title', 'concept_rationale', 'system_prompt_direct', 'system_prompt_socratic', 'is_active']),
+                ...$protocol->only(['id', 'code', 'name', 'description', 'concept_title', 'concept_rationale', 'core_lesson', 'learning_objectives', 'system_prompt_direct', 'system_prompt_socratic', 'is_active']),
                 'phase' => $protocol->phase->value,
                 'settings' => $protocol->resolvedSettings(),
                 'is_frozen' => $protocol->isFrozen(),

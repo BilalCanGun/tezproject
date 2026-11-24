@@ -12,6 +12,7 @@ const props = defineProps({
     task: Object,
     kinds: Array,
     measures: Array,
+    objectives: { type: Array, default: () => [] },
     pyodideIndexUrl: String,
 });
 
@@ -48,6 +49,7 @@ const form = useForm({
         misconceptions: [],
         target_bugs: [],
         explanation_elements: [],
+        learning_objectives: [],
         ...(props.task?.scoring_key ?? {}),
     },
 });
@@ -226,6 +228,14 @@ function submit() {
                             </select>
                         </Field>
                         <Field label="Tahmini süre (dk)" :error="err('scoring_key.estimated_minutes')"><input v-model.number="key.estimated_minutes" type="number" min="0" class="input"></Field>
+                    </div>
+                    <div v-if="objectives.length">
+                        <p class="label">Ölçtüğü öğrenme hedefleri</p>
+                        <div class="flex flex-wrap gap-x-4 gap-y-1">
+                            <label v-for="objective in objectives" :key="objective.key" class="flex items-center gap-2 text-sm">
+                                <input v-model="key.learning_objectives" type="checkbox" :value="objective.key" class="rounded border-stone-300"> {{ objective.label }}
+                            </label>
+                        </div>
                     </div>
                     <Field label="Beklenen çözüm yaklaşımı" :error="err('scoring_key.expected_approach')"><textarea v-model="key.expected_approach" rows="3" class="input" /></Field>
                     <Field label="Neden bu kategoride?" hint="Ör. uzak transferde öğrencinin ilkeyi kendisinin fark etmesi gerekir" :error="err('scoring_key.category_rationale')"><textarea v-model="key.category_rationale" rows="3" class="input" /></Field>

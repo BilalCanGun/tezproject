@@ -56,6 +56,7 @@ class TaskController extends Controller
             'task' => null,
             'kinds' => $this->kinds(),
             'measures' => $this->measures(),
+            'objectives' => $protocol->learning_objectives ?? [],
             'pyodideIndexUrl' => config('experiment.pyodide_index_url'),
         ]);
     }
@@ -81,6 +82,7 @@ class TaskController extends Controller
             ],
             'kinds' => $this->kinds(),
             'measures' => $this->measures(),
+            'objectives' => $protocol->learning_objectives ?? [],
             'pyodideIndexUrl' => config('experiment.pyodide_index_url'),
         ]);
     }

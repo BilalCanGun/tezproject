@@ -109,6 +109,7 @@ return [
             'max_socratic_leak_rate' => 0.05,
             'min_socratic_questions_per_reply' => 1.0,
             'max_planning_violations_per_task' => 1.0,
+            'max_form_difference_percent' => 15,
         ],
         'rating' => [
             'double_rating_percent' => 30,

@@ -53,6 +53,30 @@ class RatingQueue
     }
 
     /**
+     * Submitted coding attempts still needing a code review from this rater.
+     * The same hash-selected share as for explanations is reviewed twice.
+     *
+     * @return Collection<int, TaskAttempt>
+     */
+    public function pendingCodeReviewsFor(User $rater, ProtocolVersion $protocol, int $limit = 50): Collection
+    {
+        $percent = (int) $protocol->setting('rating.double_rating_percent');
+
+        return TaskAttempt::query()
+            ->whereNotNull('submitted_at')
+            ->whereHas('task', fn (Builder $query) => $query
+                ->whereIn('kind', array_map(fn (TaskKind $kind) => $kind->value, array_filter(TaskKind::cases(), fn (TaskKind $kind) => $kind->isCoding())))
+                ->where('protocol_version_id', $protocol->id))
+            ->whereDoesntHave('codeReviews', fn (Builder $query) => $query->where('rater_id', $rater->id))
+            ->withCount('codeReviews')
+            ->get()
+            ->filter(fn (TaskAttempt $attempt) => $attempt->code_reviews_count < ((crc32('code-review-'.$attempt->id) % 100) < $percent ? 2 : 1))
+            ->sortBy(fn (TaskAttempt $attempt) => crc32('code-order-'.$attempt->id))
+            ->take($limit)
+            ->values();
+    }
+
+    /**
      * Neutral, non-identifying label shown to raters instead of the code.
      */
     public static function blindLabel(TaskAttempt $attempt): string

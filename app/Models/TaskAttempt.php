@@ -118,4 +118,22 @@ class TaskAttempt extends Model
     {
         return $this->hasMany(Rating::class);
     }
+
+    /**
+     * @return HasMany<CodeReview, $this>
+     */
+    public function codeReviews(): HasMany
+    {
+        return $this->hasMany(CodeReview::class);
+    }
+
+    /**
+     * Mean human score from code reviews, or null when not reviewed yet.
+     */
+    public function reviewedScore(): ?float
+    {
+        $reviews = $this->relationLoaded('codeReviews') ? $this->codeReviews : $this->codeReviews()->get();
+
+        return $reviews->isEmpty() ? null : round($reviews->avg('score'), 2);
+    }
 }

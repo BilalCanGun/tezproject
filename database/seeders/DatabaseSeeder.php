@@ -30,6 +30,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             DeviceProfileSeeder::class,
             PilotProtocolSeeder::class,
+            PilotProtocolV2Seeder::class,
         ]);
     }
 }

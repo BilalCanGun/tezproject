@@ -106,6 +106,20 @@ class LlmRubricScorer
     private function heuristicScores(TaskAttempt $attempt, Collection $criteria): array
     {
         $text = Str::lower($attempt->explanation_text ?? '');
+        $elements = $attempt->task->explanationElements();
+
+        if ($elements !== []) {
+            $matched = collect($elements)->filter(function (string $element) use ($text) {
+                $words = collect(preg_split('/[^\p{L}\p{N}_]+/u', Str::lower($element)))->filter(fn ($word) => mb_strlen($word) >= 5);
+
+                return $words->isNotEmpty() && $words->contains(fn ($word) => Str::contains($text, mb_substr($word, 0, 5)));
+            })->count();
+
+            return $criteria->mapWithKeys(fn (RubricCriterion $criterion) => [
+                $criterion->key => (int) min($criterion->max_score, max($criterion->min_score, round($matched / count($elements) * $criterion->max_score))),
+            ])->all();
+        }
+
         $signals = [
             Str::contains($text, ['temel durum', 'durma koşulu', 'base case']),
             Str::contains($text, ['kendini çağır', 'kendisini çağır', 'özyinele', 'recursive', 'tekrar çağır']),

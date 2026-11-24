@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Arr;
 
 #[Fillable([
-    'code', 'name', 'phase', 'description', 'concept_title', 'concept_rationale',
+    'code', 'name', 'phase', 'description', 'concept_title', 'concept_rationale', 'core_lesson', 'learning_objectives',
     'settings', 'system_prompt_direct', 'system_prompt_socratic', 'is_active',
 ])]
 class ProtocolVersion extends Model
@@ -30,6 +30,7 @@ class ProtocolVersion extends Model
         return [
             'phase' => ProtocolPhase::class,
             'settings' => 'array',
+            'learning_objectives' => 'array',
             'is_active' => 'boolean',
             'frozen_at' => 'datetime',
         ];
@@ -39,6 +40,16 @@ class ProtocolVersion extends Model
     protected function active(Builder $query): void
     {
         $query->where('is_active', true);
+    }
+
+    /**
+     * Learning objective keys mapped to their labels.
+     *
+     * @return array<string, string>
+     */
+    public function objectiveLabels(): array
+    {
+        return collect($this->learning_objectives ?? [])->pluck('label', 'key')->all();
     }
 
     public function isFrozen(): bool

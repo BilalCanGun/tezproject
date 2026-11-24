@@ -86,6 +86,7 @@ class PilotValidation
                 fn ($v) => $v >= $p('far_transfer_floor_percent') && $v <= $p('far_transfer_ceiling_percent'),
                 'puan%',
             ),
+            ...$this->formDifferenceRows($attempts, (float) $p('max_form_difference_percent')),
             $this->row(
                 'Doğrudan YZ koşulu',
                 'Tam kod (≥3 satır) içeren yanıt oranı',
@@ -160,6 +161,33 @@ class PilotValidation
     }
 
     /**
+     * Forms are not assumed equivalent: for every form kind compare the mean
+     * success of form A and form B across both sessions.
+     *
+     * @param  Collection<int, TaskAttempt>  $attempts
+     * @return list<array{component: string, criterion: string, threshold: string, observed: string, status: string}>
+     */
+    private function formDifferenceRows(Collection $attempts, float $maxDifference): array
+    {
+        return collect(Task::FORM_KINDS)->map(function (TaskKind $kind) use ($attempts, $maxDifference) {
+            $mean = fn (string $form) => Statistics::mean($attempts
+                ->filter(fn (TaskAttempt $attempt) => $attempt->task->kind === $kind && $attempt->task->form === $form && $attempt->submitted_at)
+                ->map(fn (TaskAttempt $attempt) => $attempt->task->max_score > 0 ? $attempt->auto_score / $attempt->task->max_score * 100 : 0)
+                ->values()->all());
+            [$a, $b] = [$mean('A'), $mean('B')];
+
+            return $this->row(
+                "Form eşdeğerliği ({$kind->label()})",
+                'A ve B formlarının ortalama başarı farkı'.($a !== null && $b !== null ? sprintf(' (A %%%.1f, B %%%.1f)', $a, $b) : ''),
+                '≤ '.$maxDifference.' puan',
+                $a !== null && $b !== null ? abs($a - $b) : null,
+                fn ($v) => $v <= $maxDifference,
+                'puan',
+            );
+        })->all();
+    }
+
+    /**
      * Design checks on the task battery. They never block freezing; they are
      * shown to the researcher as warnings on the protocol pages.
      *
@@ -212,6 +240,18 @@ class PilotValidation
 
         if ($tasks->where('kind', TaskKind::ConceptPrecheck)->isEmpty()) {
             $warnings[] = 'Ön değerlendirmede kavram ön kontrolü yok; hedef kavramı önceden bilen katılımcılar ayırt edilemez.';
+        }
+
+        if (blank($protocol->core_lesson)) {
+            $warnings[] = 'Ortak öğrenme içeriği girilmemiş; üç koşulun da gördüğü temel kavram anlatımı 1. oturumda gösterilemez.';
+        }
+
+        $covered = $tasks->flatMap(fn (Task $task) => (array) ($task->scoring_key['learning_objectives'] ?? []))->unique();
+
+        foreach ($protocol->objectiveLabels() as $key => $label) {
+            if (! $covered->contains($key)) {
+                $warnings[] = "\"{$label}\" öğrenme hedefini ölçen görev yok.";
+            }
         }
 
         return $warnings;

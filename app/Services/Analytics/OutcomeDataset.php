@@ -49,7 +49,8 @@ class OutcomeDataset
         's1_far_transfer_pct' => '1. oturum uzak transfer % (yardımla)',
         's1_debugging_pct' => '1. oturum hata bulma/düzeltme %',
         's1_explanation_score' => '1. oturum açıklama puanı (insan puanlayıcı ortalaması)',
-        's2_far_transfer_pct' => 'BİRİNCİL SONUÇ: 2. oturum yardımsız uzak transfer %',
+        's2_far_transfer_pct' => 'BİRİNCİL SONUÇ: 2. oturum yardımsız uzak transfer % (otomatik test puanı)',
+        's2_far_transfer_reviewed_pct' => '2. oturum uzak transfer %, puanlama anahtarına göre insan puanı (kod puanlaması yapılan denemeler)',
         's2_near_transfer_pct' => '2. oturum yardımsız yakın transfer %',
         's2_debugging_pct' => '2. oturum hata bulma/düzeltme %',
         's2_recall_pct' => '2. oturum gecikmeli hatırlama %',
@@ -75,7 +76,7 @@ class OutcomeDataset
         return Participant::query()
             ->where('protocol_version_id', $protocol->id)
             ->whereNotNull('condition')
-            ->with(['protocolVersion', 'sessions.attempts.task', 'sessions.attempts.ratings', 'sessions.qualityReview'])
+            ->with(['protocolVersion', 'sessions.attempts.task', 'sessions.attempts.ratings', 'sessions.attempts.codeReviews', 'sessions.qualityReview'])
             ->orderBy('code')
             ->lazy(50)
             ->map(fn (Participant $participant) => $this->row($participant, $protocol));
@@ -116,6 +117,7 @@ class OutcomeDataset
             's1_debugging_pct' => $this->percent($first, TaskKind::Debugging),
             's1_explanation_score' => $this->explanationScore($first),
             's2_far_transfer_pct' => $this->percent($second, TaskKind::FarTransfer),
+            's2_far_transfer_reviewed_pct' => $this->reviewedPercent($second, TaskKind::FarTransfer),
             's2_near_transfer_pct' => $this->percent($second, TaskKind::NearTransfer),
             's2_debugging_pct' => $this->percent($second, TaskKind::Debugging),
             's2_recall_pct' => $this->percent($second, TaskKind::DelayedRecall),
@@ -145,6 +147,23 @@ class OutcomeDataset
         $max = $attempts->sum(fn (TaskAttempt $attempt) => $attempt->task->max_score);
 
         return $max > 0 ? round($attempts->sum('auto_score') / $max * 100, 1) : null;
+    }
+
+    /**
+     * Percentage from human code reviews; attempts not yet reviewed are left
+     * out, so the value is null until at least one attempt is reviewed.
+     */
+    private function reviewedPercent(?ExperimentSession $session, TaskKind $kind): ?float
+    {
+        $attempts = $session?->attempts->filter(fn (TaskAttempt $attempt) => $attempt->task->kind === $kind && $attempt->submitted_at && $attempt->reviewedScore() !== null);
+
+        if (! $attempts || $attempts->isEmpty()) {
+            return null;
+        }
+
+        $max = $attempts->sum(fn (TaskAttempt $attempt) => $attempt->task->max_score);
+
+        return $max > 0 ? round($attempts->sum(fn (TaskAttempt $attempt) => $attempt->reviewedScore()) / $max * 100, 1) : null;
     }
 
     private function explanationScore(?ExperimentSession $session): ?float

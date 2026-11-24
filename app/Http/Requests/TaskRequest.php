@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\TaskKind;
+use App\Models\ProtocolVersion;
 use App\Models\Task;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -79,7 +80,19 @@ class TaskRequest extends FormRequest
             'scoring_key.target_bugs.*.description' => ['required', 'string', 'max:2000'],
             'scoring_key.explanation_elements' => ['nullable', 'array', 'max:20'],
             'scoring_key.explanation_elements.*' => ['string', 'max:2000'],
+            'scoring_key.learning_objectives' => ['nullable', 'array'],
+            'scoring_key.learning_objectives.*' => ['string', Rule::in(array_keys($this->protocolObjectives()))],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function protocolObjectives(): array
+    {
+        $protocol = $this->route('protocol');
+
+        return $protocol instanceof ProtocolVersion ? $protocol->objectiveLabels() : [];
     }
 
     /**

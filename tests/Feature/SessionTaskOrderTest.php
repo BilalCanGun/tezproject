@@ -105,6 +105,26 @@ class SessionTaskOrderTest extends TestCase
     }
 
     #[Test]
+    public function every_condition_sees_the_core_lesson_before_its_own_support(): void
+    {
+        $this->protocol->update(['core_lesson' => "# Durum makinesi\n\nOrtak anlatım."]);
+        $this->task(TaskKind::Learning, 0, 1);
+
+        foreach (AssistanceCondition::cases() as $condition) {
+            $participant = Participant::factory()->for($this->protocol, 'protocolVersion')->randomized($condition)->create();
+            $session = $participant->sessions()->create(['session_number' => 1]);
+            app(SessionRunner::class)->prepare($session);
+
+            $labels = $session->steps()->orderBy('position')->pluck('label')->all();
+            $lesson = $session->steps()->where('label', 'Ortak öğrenme içeriği')->sole();
+
+            $this->assertSame("# Durum makinesi\n\nOrtak anlatım.", $lesson->config['body']);
+            $this->assertTrue($lesson->config['lesson']);
+            $this->assertLessThan(array_search('Bu oturumda kullanabileceğiniz destek', $labels, true), array_search('Ortak öğrenme içeriği', $labels, true));
+        }
+    }
+
+    #[Test]
     public function the_task_order_is_part_of_the_protocol_settings(): void
     {
         $this->assertSame(

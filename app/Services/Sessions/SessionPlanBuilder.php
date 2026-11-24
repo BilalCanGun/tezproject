@@ -107,6 +107,7 @@ class SessionPlanBuilder
                 MD),
             $this->restingBaseline($protocol),
             $this->syncGesture($protocol, 'start'),
+            ...$this->coreLesson($protocol),
             $this->instructions('Bu oturumda kullanabileceğiniz destek', $this->conditionBriefing($condition)),
             ...$this->taskSteps($tasks),
             $this->syncGesture($protocol, 'end'),
@@ -173,6 +174,24 @@ class SessionPlanBuilder
             fn (Task $a, Task $b) => $a->sort_order <=> $b->sort_order,
             fn (Task $a, Task $b) => $a->id <=> $b->id,
         ])->values();
+    }
+
+    /**
+     * The common core lesson: identical for every condition, shown before the
+     * condition-specific support is introduced.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function coreLesson(ProtocolVersion $protocol): array
+    {
+        if (blank($protocol->core_lesson)) {
+            return [];
+        }
+
+        $step = $this->instructions('Ortak öğrenme içeriği', $protocol->core_lesson);
+        $step['config']['lesson'] = true;
+
+        return [$step];
     }
 
     private function conditionBriefing(AssistanceCondition $condition): string

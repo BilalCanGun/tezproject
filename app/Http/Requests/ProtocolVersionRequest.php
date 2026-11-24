@@ -30,6 +30,10 @@ class ProtocolVersionRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:4000'],
             'concept_title' => ['nullable', 'string', 'max:160'],
             'concept_rationale' => ['nullable', 'string', 'max:4000'],
+            'core_lesson' => ['nullable', 'string', 'max:60000'],
+            'learning_objectives' => ['nullable', 'array', 'max:12'],
+            'learning_objectives.*.key' => ['required', 'string', 'max:40', 'alpha_dash', 'distinct'],
+            'learning_objectives.*.label' => ['required', 'string', 'max:500'],
             'system_prompt_direct' => ['required', 'string', 'max:20000'],
             'system_prompt_socratic' => ['required', 'string', 'max:20000'],
             'copy_from' => ['nullable', 'integer', 'exists:protocol_versions,id'],
@@ -74,6 +78,7 @@ class ProtocolVersionRequest extends FormRequest
             'settings.pilot.max_socratic_leak_rate' => ['required', 'numeric', 'between:0,1'],
             'settings.pilot.min_socratic_questions_per_reply' => ['required', 'numeric', 'between:0,10'],
             'settings.pilot.max_planning_violations_per_task' => ['required', 'numeric', 'between:0,50'],
+            'settings.pilot.max_form_difference_percent' => ['required', 'numeric', 'between:0,100'],
 
             'settings.rating.double_rating_percent' => ['required', 'integer', 'between:0,100'],
 

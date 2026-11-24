@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\RubricCriterionController;
 use App\Http\Controllers\Admin\TaskController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\CodeReviewController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DataFileController;
 use App\Http\Controllers\ExperimentSessionController;
@@ -106,6 +107,10 @@ Route::middleware('auth')->group(function () {
         Route::get('ratings', [RatingController::class, 'index'])->name('ratings.index');
         Route::get('ratings/{attempt}', [RatingController::class, 'edit'])->name('ratings.edit');
         Route::put('ratings/{attempt}', [RatingController::class, 'update'])->name('ratings.update');
+
+        Route::get('code-reviews', [CodeReviewController::class, 'index'])->name('code-reviews.index');
+        Route::get('code-reviews/{attempt}', [CodeReviewController::class, 'edit'])->name('code-reviews.edit');
+        Route::put('code-reviews/{attempt}', [CodeReviewController::class, 'update'])->name('code-reviews.update');
     });
 
     /*

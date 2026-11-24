@@ -46,7 +46,31 @@ class TaskDesignWarningsTest extends TestCase
             $this->tasks()->withForm($form, TaskKind::Debugging)->create();
         }
 
-        $this->tasks()->forSession(2)->multipleChoice()->kind(TaskKind::DelayedRecall)->create(['session_number' => 2, 'isomorph_group' => 'recall']);
+        $this->tasks()->forSession(2)->multipleChoice()->kind(TaskKind::DelayedRecall)->create([
+            'session_number' => 2,
+            'isomorph_group' => 'recall',
+            'scoring_key' => ['measures' => 'delayed_recall', 'learning_objectives' => ['tanima']],
+        ]);
+
+        $this->protocol->update([
+            'core_lesson' => '# Ortak içerik',
+            'learning_objectives' => [['key' => 'tanima', 'label' => 'Kavramı tanıma']],
+        ]);
+    }
+
+    #[Test]
+    public function the_core_lesson_and_uncovered_objectives_are_reported(): void
+    {
+        $this->completeBattery();
+        $this->protocol->update([
+            'core_lesson' => null,
+            'learning_objectives' => [['key' => 'tanima', 'label' => 'Kavramı tanıma'], ['key' => 'genelleme', 'label' => 'Yeni probleme genelleme']],
+        ]);
+
+        $this->assertSame([
+            'Ortak öğrenme içeriği girilmemiş; üç koşulun da gördüğü temel kavram anlatımı 1. oturumda gösterilemez.',
+            '"Yeni probleme genelleme" öğrenme hedefini ölçen görev yok.',
+        ], $this->warnings());
     }
 
     /**
@@ -122,8 +146,8 @@ class TaskDesignWarningsTest extends TestCase
         $admin = User::factory()->admin()->create();
 
         $this->actingAs($admin)->get(route('admin.protocols.edit', $this->protocol))
-            ->assertInertia(fn (AssertableInertia $page) => $page->has('designWarnings', 5));
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('designWarnings', 6));
         $this->actingAs($admin)->get(route('admin.protocols.tasks.index', $this->protocol))
-            ->assertInertia(fn (AssertableInertia $page) => $page->has('designWarnings', 5));
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('designWarnings', 6));
     }
 }
