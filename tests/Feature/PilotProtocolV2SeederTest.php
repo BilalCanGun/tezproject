@@ -41,7 +41,8 @@ class PilotProtocolV2SeederTest extends TestCase
         $this->assertCount(3, $tasks->where('kind', TaskKind::FarTransfer)->where('form', 'A'));
         $this->assertCount(3, $tasks->where('kind', TaskKind::FarTransfer)->where('form', 'B'));
         $this->assertTrue($tasks->every(fn (Task $task) => ($task->scoring_key['measures'] ?? null) === $task->kind->value));
-        $this->assertTrue($tasks->filter(fn (Task $task) => $task->kind->isCoding())->every(fn (Task $task) => count($task->test_cases) >= 6));
+        $this->assertTrue($tasks->filter(fn (Task $task) => $task->kind->isCoding())->every(fn (Task $task) => count($task->test_cases) >= 6 && count($task->scoring_key['alternative_solutions']) > 0));
+        $this->assertTrue($tasks->where('kind', TaskKind::Explanation)->every(fn (Task $task) => str_contains($task->scoring_key['expected_approach'], 'Örnek iyi açıklama')));
     }
 
     #[Test]

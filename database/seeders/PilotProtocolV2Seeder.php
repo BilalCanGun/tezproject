@@ -20,6 +20,14 @@ class PilotProtocolV2Seeder extends Seeder
 {
     public const CODE = 'PILOT-v2';
 
+    /**
+     * Model answers ("first answers") for the explanation tasks, shown to raters
+     * next to the expected elements.
+     */
+    public const MODEL_ANSWER_SESSION_ONE = 'Durum makinesi girdiyi baştan sona bir kez okur ve her an sınırlı sayıdaki durumdan birindedir; durum, şu ana kadar okunanların özetidir. Her yeni karakter ya da olayda, o anki duruma ve gelen girdiye bakılarak bir geçiş kuralıyla yeni duruma geçilir. Okumaya başlamadan önce başlangıç durumundayızdır; girdi bitince son durum kabul durumlarından biriyse sonuç geçerlidir. Hangi durumlara ihtiyaç olduğuna karar vermek için "okurken hangi farklı aşamalarda olabilirim?" diye düşünürüm; örneğin ürün kodunda "harf okuyorum", "tireyi gördüm", "rakam okuyorum" aşamalarını ayırır ve her aşamada hangi karakterin nereye götürdüğünü bir tabloya yazarım. Kurala uymayan bir karakter gelirse makine hata durumuna geçer ve oradan çıkmaz. Aynı fikir yalnızca metinlerde değil, düğmelere basma, cihaz komutları ya da bir olay dizisini işleyen programlarda da kullanılabilir; önemli olan, bir girdinin anlamının önceki girdilere bağlı olmasıdır.';
+
+    public const MODEL_ANSWER_SESSION_TWO = 'Durumlar KIRMIZI, YEŞİL, SARI ve YANIP SÖNEN SARI olur; başlangıç durumu KIRMIZI\'dır. "Süre doldu" olayı KIRMIZI → YEŞİL → SARI → KIRMIZI döngüsünü bir adım ilerletir. "Arıza" olayı hangi durumda gelirse gelsin lambayı YANIP SÖNEN SARI durumuna götürür; bu durumdayken "süre doldu" olayları durumu değiştirmez. "Düzeltildi" olayı YANIP SÖNEN SARI\'dan KIRMIZI\'ya döndürür; diğer durumlarda gelirse yok sayılır. Beklenmeyen bir olay gelirse durum değişmez (gerekirse hata olarak sayılır). Program durumu KIRMIZI olarak başlatır, olay listesini sırayla okur ve her olayda (mevcut durum, olay) çiftine göre bir geçiş tablosundan yeni durumu bulur; tabloda olmayan çiftlerde durumu değiştirmez.';
+
     public function run(): void
     {
         if (ProtocolVersion::where('code', self::CODE)->exists()) {
@@ -478,7 +486,10 @@ class PilotProtocolV2Seeder extends Seeder
                     MD,
                 'max_score' => 12,
                 'time_limit_seconds' => 420,
-                'scoring_key' => $this->explanationKey('Görev, problem çözme tamamlandıktan sonra gelir ve kavramın çalışma mantığını kendi cümleleriyle açıklama becerisini ölçer.'),
+                'scoring_key' => $this->explanationKey(
+                    'Görev, problem çözme tamamlandıktan sonra gelir ve kavramın çalışma mantığını kendi cümleleriyle açıklama becerisini ölçer.',
+                    self::MODEL_ANSWER_SESSION_ONE,
+                ),
             ],
         ];
     }
@@ -1314,7 +1325,7 @@ class PilotProtocolV2Seeder extends Seeder
                     MD,
                 'max_score' => 12,
                 'time_limit_seconds' => 420,
-                'scoring_key' => $this->explanationKey('Görev, 2. oturumun sonunda, problem çözme görevlerinden sonra gelir. Kavramın yeni bir bağlamda açıklanmasını ölçer; uzak transfer kodlama görevlerinden ayrıdır.', [
+                'scoring_key' => $this->explanationKey('Görev, 2. oturumun sonunda, problem çözme görevlerinden sonra gelir. Kavramın yeni bir bağlamda açıklanmasını ölçer; uzak transfer kodlama görevlerinden ayrıdır.', self::MODEL_ANSWER_SESSION_TWO, [
                     'Durumların (kırmızı, yeşil, sarı, yanıp sönen sarı) ayrı ayrı belirtilmesi',
                     'Başlangıç durumunun ve bozulma/düzeltme geçişlerinin açıklanması',
                 ]),
@@ -1552,11 +1563,11 @@ class PilotProtocolV2Seeder extends Seeder
      * @param  list<string>  $extraElements
      * @return array<string, mixed>
      */
-    private function explanationKey(string $rationale, array $extraElements = []): array
+    private function explanationKey(string $rationale, string $modelAnswer, array $extraElements = []): array
     {
         return [
             'measures' => 'explanation',
-            'expected_approach' => 'Kavramı kendi cümleleriyle, kod yazmadan açıklamak.',
+            'expected_approach' => "Kavramı kendi cümleleriyle, kod yazmadan açıklamak.\n\nÖrnek iyi açıklama (ilk cevap): {$modelAnswer}",
             'difficulty' => 'orta',
             'estimated_minutes' => 6,
             'category_rationale' => $rationale,
